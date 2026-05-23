@@ -316,6 +316,23 @@ body,
   pointer-events: none;
 }
 
+.crop-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: white;
+  border: 1.5px solid var(--accent);
+  border-radius: 50%;
+  pointer-events: auto;
+  touch-action: none;
+  z-index: 2;
+}
+
+.crop-handle:hover {
+  background: var(--accent);
+  transform: scale(1.3);
+}
+
 .toolbar {
   width: 100%;
   display: flex;
