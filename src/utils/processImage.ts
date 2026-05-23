@@ -60,14 +60,30 @@ export async function processImage(
   cropCtx.drawImage(cropCanvas, 0, 0);
   cropCtx.filter = 'none';
 
-  const outputW = orientation === 'portrait' ? 480 : 800;
-  const outputH = orientation === 'portrait' ? 800 : 480;
+  const outputW = 480;
+  const outputH = 800;
 
   const outputCanvas = document.createElement('canvas');
   outputCanvas.width = outputW;
   outputCanvas.height = outputH;
   const outCtx = outputCanvas.getContext('2d')!;
-  outCtx.drawImage(cropCanvas, 0, 0, outputW, outputH);
+
+  if (orientation === 'portrait') {
+    outCtx.drawImage(cropCanvas, 0, 0, outputW, outputH);
+  } else {
+    const rotated = document.createElement('canvas');
+    rotated.width = cropCanvas.height;
+    rotated.height = cropCanvas.width;
+    const rotCtx = rotated.getContext('2d')!;
+
+    rotCtx.save();
+    rotCtx.translate(rotated.width / 2, rotated.height / 2);
+    rotCtx.rotate(Math.PI / 2);
+    rotCtx.drawImage(cropCanvas, -cropCanvas.width / 2, -cropCanvas.height / 2);
+    rotCtx.restore();
+
+    outCtx.drawImage(rotated, 0, 0, outputW, outputH);
+  }
 
   const blob = canvasToBMP(outputCanvas);
 
