@@ -1,9 +1,9 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import type { CropOrientation, CropRect, ImageFile } from '../types';
 import type { DitherAlgorithm } from '../utils/dither';
+import { applyDither } from '../utils/dither';
 import CropOverlay from './CropOverlay';
 import Toolbar from './Toolbar';
-import DitherPreview from './DitherPreview';
 
 interface ImageEditorProps {
   image: ImageFile | null;
@@ -28,6 +28,8 @@ export default function ImageEditor({
 }: ImageEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawTimerRef = useRef(0);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [displaySize, setDisplaySize] = useState({ w: 0, h: 0 });
   const [cropRect, setCropRect] = useState<CropRect>({ x: 0, y: 0, width: 0, height: 0 });
@@ -57,6 +59,33 @@ export default function ImageEditor({
     setImgLoaded(true);
   }, []);
 
+  const drawCanvas = useCallback(() => {
+    const img = imgRef.current;
+    const canvas = canvasRef.current;
+    if (!img || !canvas || !img.complete) return;
+
+    const w = displaySize.w;
+    const h = displaySize.h;
+    if (w <= 0 || h <= 0) return;
+
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d')!;
+
+    ctx.filter = 'none';
+    ctx.drawImage(img, 0, 0, w, h);
+
+    ctx.filter = 'grayscale(100%)';
+    ctx.drawImage(canvas, 0, 0);
+    ctx.filter = 'none';
+
+    if (dither !== 'none') {
+      const imageData = ctx.getImageData(0, 0, w, h);
+      const dithered = applyDither(imageData, dither);
+      ctx.putImageData(dithered, 0, 0);
+    }
+  }, [displaySize.w, displaySize.h, dither]);
+
   useEffect(() => {
     setImgLoaded(false);
     setAdded(false);
@@ -70,6 +99,13 @@ export default function ImageEditor({
     observer.observe(container);
     return () => observer.disconnect();
   }, [updateSize]);
+
+  useEffect(() => {
+    clearTimeout(drawTimerRef.current);
+    if (!imgLoaded || displaySize.w <= 0) return;
+    drawTimerRef.current = window.setTimeout(drawCanvas, 80);
+    return () => clearTimeout(drawTimerRef.current);
+  }, [imgLoaded, displaySize.w, displaySize.h, dither, drawCanvas]);
 
   const handleImageLoad = () => {
     updateSize();
@@ -105,14 +141,15 @@ export default function ImageEditor({
             ref={imgRef}
             src={image.url}
             alt={image.name}
-            className="image-main"
-            style={{
-              width: displaySize.w || 'auto',
-              height: displaySize.h || 'auto',
-              display: imgLoaded ? 'block' : 'none',
-            }}
+            className="image-loader-hidden"
             onLoad={handleImageLoad}
-            draggable={false}
+          />
+          <canvas
+            ref={canvasRef}
+            className="image-canvas-display"
+            style={{
+              visibility: imgLoaded && displaySize.w > 0 ? 'visible' : 'hidden',
+            }}
           />
           {imgLoaded && displaySize.w > 0 && (
             <CropOverlay
@@ -130,17 +167,6 @@ export default function ImageEditor({
           </div>
         )}
       </div>
-
-      {imgLoaded && dither !== 'none' && (
-        <DitherPreview
-          imageUrl={image.url}
-          cropRect={cropRect}
-          displayWidth={displaySize.w}
-          displayHeight={displaySize.h}
-          orientation={orientation}
-          dither={dither}
-        />
-      )}
 
       <Toolbar
         currentIndex={currentIndex}
