@@ -95,7 +95,7 @@ export default function ImageEditor({
       const srcCropW = Math.round(cropRect.width * scaleX);
       const srcCropH = Math.round(cropRect.height * scaleY);
 
-      const aspectRatio = orientation === 'portrait' ? 4 / 5 : 5 / 4;
+      const aspectRatio = orientation === 'portrait' ? 3 / 5 : 5 / 3;
       let finalCropW: number;
       let finalCropH: number;
 
@@ -134,10 +134,10 @@ export default function ImageEditor({
       cropCtx.filter = 'none';
 
       const outputCanvas = document.createElement('canvas');
-      outputCanvas.width = 480;
-      outputCanvas.height = 800;
+      outputCanvas.width = orientation === 'portrait' ? 480 : 800;
+      outputCanvas.height = orientation === 'portrait' ? 800 : 480;
       const outCtx = outputCanvas.getContext('2d')!;
-      outCtx.drawImage(cropCanvas, 0, 0, 480, 800);
+      outCtx.drawImage(cropCanvas, 0, 0, outputCanvas.width, outputCanvas.height);
 
       const previewUrl = outputCanvas.toDataURL('image/jpeg', 0.92);
       const bmpBlob = canvasToBMP(outputCanvas);
@@ -227,6 +227,7 @@ export default function ImageEditor({
           dataUrl={resultUrl}
           bmpUrl={bmpBlobUrl}
           imageName={image.name}
+          orientation={orientation}
           onClose={handleClosePreview}
         />
       )}

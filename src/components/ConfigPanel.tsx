@@ -40,13 +40,13 @@ export default function ConfigPanel({
             className={orientation === 'portrait' ? 'active' : ''}
             onClick={() => onOrientationChange('portrait')}
           >
-            Portrait (4:5)
+            Portrait (3:5)
           </button>
           <button
             className={orientation === 'landscape' ? 'active' : ''}
             onClick={() => onOrientationChange('landscape')}
           >
-            Landscape (5:4)
+            Landscape (5:3)
           </button>
         </div>
       </div>

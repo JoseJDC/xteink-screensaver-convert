@@ -1,7 +1,10 @@
+import type { CropOrientation } from '../types';
+
 interface ResultPreviewProps {
   dataUrl: string;
   bmpUrl: string | null;
   imageName: string;
+  orientation: CropOrientation;
   onClose: () => void;
 }
 
@@ -9,6 +12,7 @@ export default function ResultPreview({
   dataUrl,
   bmpUrl,
   imageName,
+  orientation,
   onClose,
 }: ResultPreviewProps) {
   const handleDownload = () => {
@@ -24,6 +28,8 @@ export default function ResultPreview({
     onClose();
   };
 
+  const dimsText = orientation === 'portrait' ? '480 × 800' : '800 × 480';
+
   return (
     <div className="result-overlay" onClick={handleClose}>
       <div className="result-modal" onClick={(e) => e.stopPropagation()}>
@@ -35,7 +41,7 @@ export default function ResultPreview({
         </div>
         <div className="result-body">
           <img src={dataUrl} alt="Processed result" />
-          <div className="result-info">480 × 800 &mdash; BMP</div>
+          <div className="result-info">{dimsText} &mdash; BMP</div>
         </div>
         <div className="result-actions">
           <button className="btn-download" onClick={handleDownload}>

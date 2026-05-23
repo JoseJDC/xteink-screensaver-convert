@@ -163,8 +163,8 @@ export default function CropOverlay({
   const interactionRef = useRef<Interaction>(null);
   const rectRef = useRef<HTMLDivElement>(null);
 
-  const aspectRatio = orientation === 'portrait' ? 4 / 5 : 5 / 4;
-  const ratioLabel = orientation === 'portrait' ? '4:5' : '5:4';
+  const aspectRatio = orientation === 'portrait' ? 3 / 5 : 5 / 3;
+  const ratioLabel = orientation === 'portrait' ? '3:5' : '5:3';
 
   const computeRect = useCallback(
     (w: number, h: number): CropRect => {

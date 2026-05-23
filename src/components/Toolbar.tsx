@@ -36,8 +36,8 @@ export default function Toolbar({
       </div>
       <div className="toolbar-center">
         <span className="toolbar-orientation">
-          Crop: {orientation === 'portrait' ? '4:5 Portrait' : '5:4 Landscape'} {' → '}
-          Output: 480×800
+          Crop: {orientation === 'portrait' ? '3:5 Portrait' : '5:3 Landscape'} {' → '}
+          Output: {orientation === 'portrait' ? '480×800' : '800×480'}
         </span>
       </div>
       <div className="toolbar-right">
