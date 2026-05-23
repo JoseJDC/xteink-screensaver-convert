@@ -1,25 +1,19 @@
-import type { CropOrientation } from '../types';
-
 interface ToolbarProps {
-  orientation: CropOrientation;
   currentIndex: number;
   imageCount: number;
   onPrev: () => void;
   onNext: () => void;
-  onProcess: () => void;
-  processing: boolean;
-  canProcess: boolean;
+  onAddToBatch: () => void;
+  canAdd: boolean;
 }
 
 export default function Toolbar({
-  orientation,
   currentIndex,
   imageCount,
   onPrev,
   onNext,
-  onProcess,
-  processing,
-  canProcess,
+  onAddToBatch,
+  canAdd,
 }: ToolbarProps) {
   return (
     <div className="toolbar">
@@ -34,19 +28,13 @@ export default function Toolbar({
           Next &#8594;
         </button>
       </div>
-      <div className="toolbar-center">
-        <span className="toolbar-orientation">
-          Crop: {orientation === 'portrait' ? '3:5 Portrait' : '5:3 Landscape'} {' → '}
-          Output: {orientation === 'portrait' ? '480×800' : '800×480'}
-        </span>
-      </div>
       <div className="toolbar-right">
         <button
           className="btn-process"
-          onClick={onProcess}
-          disabled={processing || !canProcess}
+          onClick={onAddToBatch}
+          disabled={!canAdd}
         >
-          {processing ? 'Processing...' : 'Process'}
+          Add to Batch
         </button>
       </div>
     </div>

@@ -2,8 +2,6 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import type { CropOrientation, CropRect, ImageFile } from '../types';
 import CropOverlay from './CropOverlay';
 import Toolbar from './Toolbar';
-import ResultPreview from './ResultPreview';
-import { canvasToBMP } from '../utils/bmp';
 
 interface ImageEditorProps {
   image: ImageFile | null;
@@ -12,7 +10,7 @@ interface ImageEditorProps {
   currentIndex: number;
   onNext: () => void;
   onPrev: () => void;
-  onMarkProcessed: () => void;
+  onAddToBatch: (cropRect: CropRect, displayW: number, displayH: number) => void;
 }
 
 export default function ImageEditor({
@@ -22,17 +20,14 @@ export default function ImageEditor({
   currentIndex,
   onNext,
   onPrev,
-  onMarkProcessed,
+  onAddToBatch,
 }: ImageEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [displaySize, setDisplaySize] = useState({ w: 0, h: 0 });
   const [cropRect, setCropRect] = useState<CropRect>({ x: 0, y: 0, width: 0, height: 0 });
-  const [processing, setProcessing] = useState(false);
-  const [resultUrl, setResultUrl] = useState<string | null>(null);
-  const [bmpBlobUrl, setBmpBlobUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string>('');
+  const [added, setAdded] = useState(false);
 
   const updateSize = useCallback(() => {
     const container = containerRef.current;
@@ -60,9 +55,7 @@ export default function ImageEditor({
 
   useEffect(() => {
     setImgLoaded(false);
-    setResultUrl(null);
-    setBmpBlobUrl(null);
-    setError('');
+    setAdded(false);
     setCropRect({ x: 0, y: 0, width: 0, height: 0 });
   }, [image?.url]);
 
@@ -78,86 +71,11 @@ export default function ImageEditor({
     updateSize();
   };
 
-  const handleProcess = async () => {
-    if (!image || !cropRect.width || !cropRect.height) return;
-    setProcessing(true);
-    setError('');
-
-    try {
-      const img = imgRef.current;
-      if (!img) throw new Error('Image not loaded');
-
-      const scaleX = img.naturalWidth / displaySize.w;
-      const scaleY = img.naturalHeight / displaySize.h;
-
-      const srcCropX = Math.round(cropRect.x * scaleX);
-      const srcCropY = Math.round(cropRect.y * scaleY);
-      const srcCropW = Math.round(cropRect.width * scaleX);
-      const srcCropH = Math.round(cropRect.height * scaleY);
-
-      const aspectRatio = orientation === 'portrait' ? 3 / 5 : 5 / 3;
-      let finalCropW: number;
-      let finalCropH: number;
-
-      if (srcCropW / srcCropH > aspectRatio) {
-        finalCropH = srcCropH;
-        finalCropW = Math.round(srcCropH * aspectRatio);
-      } else {
-        finalCropW = srcCropW;
-        finalCropH = Math.round(srcCropW / aspectRatio);
-      }
-
-      const offsetX = Math.round((srcCropW - finalCropW) / 2);
-      const offsetY = Math.round((srcCropH - finalCropH) / 2);
-
-      const cropCanvas = document.createElement('canvas');
-      cropCanvas.width = finalCropW;
-      cropCanvas.height = finalCropH;
-      const cropCtx = cropCanvas.getContext('2d')!;
-
-      cropCtx.filter = 'none';
-      cropCtx.drawImage(
-        img,
-        srcCropX + offsetX,
-        srcCropY + offsetY,
-        finalCropW,
-        finalCropH,
-        0,
-        0,
-        finalCropW,
-        finalCropH
-      );
-
-      cropCtx.filter = 'grayscale(100%)';
-      cropCtx.drawImage(cropCanvas, 0, 0);
-
-      cropCtx.filter = 'none';
-
-      const outputCanvas = document.createElement('canvas');
-      outputCanvas.width = orientation === 'portrait' ? 480 : 800;
-      outputCanvas.height = orientation === 'portrait' ? 800 : 480;
-      const outCtx = outputCanvas.getContext('2d')!;
-      outCtx.drawImage(cropCanvas, 0, 0, outputCanvas.width, outputCanvas.height);
-
-      const previewUrl = outputCanvas.toDataURL('image/jpeg', 0.92);
-      const bmpBlob = canvasToBMP(outputCanvas);
-      const bmpUrl = URL.createObjectURL(bmpBlob);
-
-      setResultUrl(previewUrl);
-      setBmpBlobUrl(bmpUrl);
-      onMarkProcessed();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Processing failed');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleClosePreview = () => {
-    if (bmpBlobUrl) URL.revokeObjectURL(bmpBlobUrl);
-    setResultUrl(null);
-    setBmpBlobUrl(null);
-    onNext();
+  const handleAddToBatch = () => {
+    if (!cropRect.width || !cropRect.height) return;
+    onAddToBatch(cropRect, displaySize.w, displaySize.h);
+    setAdded(true);
+    setTimeout(() => setAdded(false), 1200);
   };
 
   if (!image) {
@@ -209,27 +127,17 @@ export default function ImageEditor({
         )}
       </div>
 
-      {error && <div className="error-msg">{error}</div>}
-
       <Toolbar
-        orientation={orientation}
         currentIndex={currentIndex}
         imageCount={imageCount}
         onPrev={onPrev}
         onNext={onNext}
-        onProcess={handleProcess}
-        processing={processing}
-        canProcess={!!cropRect.width && !!cropRect.height}
+        onAddToBatch={handleAddToBatch}
+        canAdd={!!cropRect.width && !!cropRect.height}
       />
 
-      {resultUrl && (
-        <ResultPreview
-          dataUrl={resultUrl}
-          bmpUrl={bmpBlobUrl}
-          imageName={image.name}
-          orientation={orientation}
-          onClose={handleClosePreview}
-        />
+      {added && (
+        <div className="added-toast">Added to batch!</div>
       )}
     </div>
   );
