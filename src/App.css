@@ -137,6 +137,21 @@ body,
   background: var(--border);
 }
 
+.dither-select {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+}
+
+.dither-select:focus {
+  border-color: var(--accent);
+}
+
 .app-workspace {
   flex: 1;
   display: flex;
@@ -732,4 +747,30 @@ body,
 .image-list-scroll::-webkit-scrollbar-thumb:hover,
 .batch-list::-webkit-scrollbar-thumb:hover {
   background: var(--text-dim);
+}
+
+.dither-preview {
+  position: absolute;
+  bottom: 70px;
+  right: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.dither-preview-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.dither-preview canvas {
+  display: block;
+  border-radius: 3px;
 }

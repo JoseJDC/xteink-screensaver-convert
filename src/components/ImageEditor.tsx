@@ -1,11 +1,14 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import type { CropOrientation, CropRect, ImageFile } from '../types';
+import type { DitherAlgorithm } from '../utils/dither';
 import CropOverlay from './CropOverlay';
 import Toolbar from './Toolbar';
+import DitherPreview from './DitherPreview';
 
 interface ImageEditorProps {
   image: ImageFile | null;
   orientation: CropOrientation;
+  dither: DitherAlgorithm;
   imageCount: number;
   currentIndex: number;
   onNext: () => void;
@@ -16,6 +19,7 @@ interface ImageEditorProps {
 export default function ImageEditor({
   image,
   orientation,
+  dither,
   imageCount,
   currentIndex,
   onNext,
@@ -126,6 +130,17 @@ export default function ImageEditor({
           </div>
         )}
       </div>
+
+      {imgLoaded && dither !== 'none' && (
+        <DitherPreview
+          imageUrl={image.url}
+          cropRect={cropRect}
+          displayWidth={displaySize.w}
+          displayHeight={displaySize.h}
+          orientation={orientation}
+          dither={dither}
+        />
+      )}
 
       <Toolbar
         currentIndex={currentIndex}

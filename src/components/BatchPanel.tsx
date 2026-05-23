@@ -38,7 +38,8 @@ export default function BatchPanel({ items, onRemove }: BatchPanelProps) {
           item.cropRect,
           item.displayWidth,
           item.displayHeight,
-          item.orientation
+          item.orientation,
+          item.dither
         );
 
         const baseName = item.imageName.replace(/\.[^.]+$/, '');

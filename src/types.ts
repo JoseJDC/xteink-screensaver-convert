@@ -1,3 +1,5 @@
+import type { DitherAlgorithm } from './utils/dither';
+
 export interface ImageFile {
   name: string;
   url: string;
@@ -21,4 +23,5 @@ export interface BatchItem {
   displayWidth: number;
   displayHeight: number;
   orientation: CropOrientation;
+  dither: DitherAlgorithm;
 }

@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { CropOrientation, CropRect, BatchItem } from './types';
+import type { DitherAlgorithm } from './utils/dither';
 import { useImages } from './hooks/useImages';
 import ConfigPanel from './components/ConfigPanel';
 import ImageList from './components/ImageList';
@@ -24,6 +25,7 @@ export default function App() {
   } = useImages();
 
   const [orientation, setOrientation] = useState<CropOrientation>('portrait');
+  const [dither, setDither] = useState<DitherAlgorithm>('none');
   const [batch, setBatch] = useState<BatchItem[]>([]);
   const [activeTab, setActiveTab] = useState<'images' | 'batch'>('images');
 
@@ -45,10 +47,11 @@ export default function App() {
         displayWidth: displayW,
         displayHeight: displayH,
         orientation,
+        dither,
       };
       setBatch((prev) => [...prev, item]);
     },
-    [images, currentIndex, orientation]
+     [images, currentIndex, orientation, dither]
   );
 
   const handleRemoveFromBatch = useCallback((id: string) => {
@@ -62,8 +65,10 @@ export default function App() {
       <ConfigPanel
         directory={directory}
         orientation={orientation}
+        dither={dither}
         onDirectoryChange={setDirectory}
         onOrientationChange={setOrientation}
+        onDitherChange={setDither}
         onLoad={handleLoad}
         loading={loading}
       />
@@ -89,6 +94,7 @@ export default function App() {
           <ImageEditor
             image={currentImage}
             orientation={orientation}
+            dither={dither}
             imageCount={images.length}
             currentIndex={currentIndex}
             onNext={goToNext}

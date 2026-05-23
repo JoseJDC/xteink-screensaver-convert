@@ -1,19 +1,40 @@
 import type { CropOrientation } from '../types';
+import type { DitherAlgorithm } from '../utils/dither';
 
 interface ConfigPanelProps {
   directory: string;
   orientation: CropOrientation;
+  dither: DitherAlgorithm;
   onDirectoryChange: (dir: string) => void;
   onOrientationChange: (orientation: CropOrientation) => void;
+  onDitherChange: (dither: DitherAlgorithm) => void;
   onLoad: () => void;
   loading: boolean;
 }
 
+const DITHER_OPTIONS: readonly DitherAlgorithm[] = [
+  'none',
+  'floyd-steinberg',
+  'atkinson',
+  'bayer4x4',
+  'bayer8x8',
+];
+
+const DITHER_LABELS: Record<DitherAlgorithm, string> = {
+  none: 'None',
+  'floyd-steinberg': 'Floyd-Steinberg',
+  atkinson: 'Atkinson',
+  bayer4x4: 'Bayer 4×4',
+  bayer8x8: 'Bayer 8×8',
+};
+
 export default function ConfigPanel({
   directory,
   orientation,
+  dither,
   onDirectoryChange,
   onOrientationChange,
+  onDitherChange,
   onLoad,
   loading,
 }: ConfigPanelProps) {
@@ -49,6 +70,20 @@ export default function ConfigPanel({
             Landscape (5:3)
           </button>
         </div>
+      </div>
+      <div className="config-row">
+        <label>Dithering:</label>
+        <select
+          className="dither-select"
+          value={dither}
+          onChange={(e) => onDitherChange(e.target.value as DitherAlgorithm)}
+        >
+          {DITHER_OPTIONS.map((opt) => (
+            <option key={opt} value={opt}>
+              {DITHER_LABELS[opt]}
+            </option>
+          ))}
+        </select>
       </div>
     </div>
   );

@@ -1,0 +1,21 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: "Directory:"
+      - textbox "Directory:" [ref=e7]:
+        - /placeholder: C:\Users\...
+      - button "Load" [disabled] [ref=e8]
+    - generic [ref=e9]:
+      - generic [ref=e10]: "Orientation:"
+      - generic [ref=e11]:
+        - button "Portrait (3:5)" [ref=e12] [cursor=pointer]
+        - button "Landscape (5:3)" [ref=e13] [cursor=pointer]
+    - generic [ref=e14]:
+      - generic [ref=e15]: "Dithering:"
+      - combobox [ref=e16] [cursor=pointer]:
+        - option "None" [selected]
+        - option "Floyd-Steinberg"
+        - option "Atkinson"
+        - option "Bayer 4×4"
+        - option "Bayer 8×8"
+  - paragraph [ref=e18]: Enter a directory path and click Load to begin.

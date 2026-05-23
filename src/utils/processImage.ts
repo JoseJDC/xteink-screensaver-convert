@@ -1,5 +1,7 @@
 import type { CropOrientation, CropRect } from '../types';
 import { canvasToBMP } from './bmp';
+import { applyDither } from './dither';
+import type { DitherAlgorithm } from './dither';
 
 export interface ProcessedResult {
   blob: Blob;
@@ -13,7 +15,8 @@ export async function processImage(
   cropRect: CropRect,
   displayWidth: number,
   displayHeight: number,
-  orientation: CropOrientation
+  orientation: CropOrientation,
+  ditherAlgorithm: DitherAlgorithm
 ): Promise<ProcessedResult> {
   const scaleX = img.naturalWidth / displayWidth;
   const scaleY = img.naturalHeight / displayHeight;
@@ -59,6 +62,12 @@ export async function processImage(
   cropCtx.filter = 'grayscale(100%)';
   cropCtx.drawImage(cropCanvas, 0, 0);
   cropCtx.filter = 'none';
+
+  if (ditherAlgorithm !== 'none') {
+    const imageData = cropCtx.getImageData(0, 0, cropCanvas.width, cropCanvas.height);
+    const dithered = applyDither(imageData, ditherAlgorithm);
+    cropCtx.putImageData(dithered, 0, 0);
+  }
 
   const outputW = 480;
   const outputH = 800;
