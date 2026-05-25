@@ -27,7 +27,6 @@ export default function BatchPanel({ items, onRemove }: BatchPanelProps) {
 
         const img = await new Promise<HTMLImageElement>((resolve, reject) => {
           const el = new Image();
-          el.crossOrigin = 'anonymous';
           el.onload = () => resolve(el);
           el.onerror = () => reject(new Error(`Failed to load ${item.imageName}`));
           el.src = item.imageUrl;

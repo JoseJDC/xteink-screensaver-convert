@@ -1,14 +1,20 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { ImageFile } from '../types';
+
+const IMAGE_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/bmp',
+]);
 
 interface UseImagesReturn {
   images: ImageFile[];
   currentIndex: number;
-  directory: string;
   loading: boolean;
   error: string;
-  setDirectory: (dir: string) => void;
-  fetchImages: () => Promise<void>;
+  loadFiles: (files: FileList) => void;
   goToNext: () => void;
   goToPrev: () => void;
   selectImage: (index: number) => void;
@@ -18,26 +24,39 @@ interface UseImagesReturn {
 export function useImages(): UseImagesReturn {
   const [images, setImages] = useState<ImageFile[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
-  const [directory, setDirectory] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
+  const oldUrlsRef = useRef<string[]>([]);
 
-  const fetchImages = useCallback(async () => {
-    if (!directory) return;
+  useEffect(() => {
+    return () => {
+      oldUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+    };
+  }, []);
+
+  const loadFiles = useCallback((files: FileList) => {
     setLoading(true);
     setError('');
+
     try {
-      const res = await fetch(`/api/images?dir=${encodeURIComponent(directory)}`);
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to fetch images');
+      const validFiles = Array.from(files).filter((f) =>
+        IMAGE_TYPES.has(f.type)
+      );
+
+      if (validFiles.length === 0) {
+        throw new Error('No valid image files found. Supported: JPEG, PNG, GIF, WebP, BMP');
       }
-      const names: string[] = await res.json();
-      const list: ImageFile[] = names.map((name) => ({
-        name,
-        url: `/api/image?dir=${encodeURIComponent(directory)}&name=${encodeURIComponent(name)}`,
-        processed: false,
-      }));
+
+      oldUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+
+      const newUrls: string[] = [];
+      const list: ImageFile[] = validFiles.map((file) => {
+        const url = URL.createObjectURL(file);
+        newUrls.push(url);
+        return { name: file.name, url, processed: false };
+      });
+
+      oldUrlsRef.current = newUrls;
       setImages(list);
       setCurrentIndex(0);
     } catch (err) {
@@ -46,7 +65,7 @@ export function useImages(): UseImagesReturn {
     } finally {
       setLoading(false);
     }
-  }, [directory]);
+  }, []);
 
   const goToNext = useCallback(() => {
     setCurrentIndex((prev) => Math.min(prev + 1, images.length - 1));
@@ -71,11 +90,9 @@ export function useImages(): UseImagesReturn {
   return {
     images,
     currentIndex,
-    directory,
     loading,
     error,
-    setDirectory,
-    fetchImages,
+    loadFiles,
     goToNext,
     goToPrev,
     selectImage,

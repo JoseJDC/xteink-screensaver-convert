@@ -2,14 +2,11 @@ import type { CropOrientation } from '../types';
 import type { DitherAlgorithm } from '../utils/dither';
 
 interface ConfigPanelProps {
-  directory: string;
   orientation: CropOrientation;
   dither: DitherAlgorithm;
-  onDirectoryChange: (dir: string) => void;
+  onFilesSelected: (files: FileList) => void;
   onOrientationChange: (orientation: CropOrientation) => void;
   onDitherChange: (dither: DitherAlgorithm) => void;
-  onLoad: () => void;
-  loading: boolean;
 }
 
 const DITHER_OPTIONS: readonly DitherAlgorithm[] = [
@@ -29,30 +26,26 @@ const DITHER_LABELS: Record<DitherAlgorithm, string> = {
 };
 
 export default function ConfigPanel({
-  directory,
   orientation,
   dither,
-  onDirectoryChange,
+  onFilesSelected,
   onOrientationChange,
   onDitherChange,
-  onLoad,
-  loading,
 }: ConfigPanelProps) {
   return (
     <div className="config-panel">
       <div className="config-row">
-        <label htmlFor="dir-input">Directory:</label>
+        <label htmlFor="file-input">Images:</label>
         <input
-          id="dir-input"
-          type="text"
-          value={directory}
-          onChange={(e) => onDirectoryChange(e.target.value)}
-          placeholder="C:\Users\..."
-          onKeyDown={(e) => e.key === 'Enter' && onLoad()}
+          id="file-input"
+          type="file"
+          multiple
+          accept="image/png,image/jpeg,image/gif,image/webp,image/bmp"
+          onChange={(e) => {
+            if (e.target.files) onFilesSelected(e.target.files);
+            e.target.value = '';
+          }}
         />
-        <button onClick={onLoad} disabled={loading || !directory.trim()}>
-          {loading ? 'Loading...' : 'Load'}
-        </button>
       </div>
       <div className="config-row">
         <label>Orientation:</label>

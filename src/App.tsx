@@ -14,11 +14,8 @@ export default function App() {
   const {
     images,
     currentIndex,
-    directory,
-    loading,
     error,
-    setDirectory,
-    fetchImages,
+    loadFiles,
     goToNext,
     goToPrev,
     selectImage,
@@ -29,11 +26,9 @@ export default function App() {
   const [batch, setBatch] = useState<BatchItem[]>([]);
   const [activeTab, setActiveTab] = useState<'images' | 'batch'>('images');
 
-  const handleLoad = useCallback(() => {
-    if (directory.trim()) {
-      fetchImages();
-    }
-  }, [directory, fetchImages]);
+  const handleFilesSelected = useCallback((files: FileList) => {
+    loadFiles(files);
+  }, [loadFiles]);
 
   const handleAddToBatch = useCallback(
     (cropRect: CropRect, displayW: number, displayH: number) => {
@@ -63,14 +58,11 @@ export default function App() {
   return (
     <div className="app">
       <ConfigPanel
-        directory={directory}
         orientation={orientation}
         dither={dither}
-        onDirectoryChange={setDirectory}
+        onFilesSelected={handleFilesSelected}
         onOrientationChange={setOrientation}
         onDitherChange={setDither}
-        onLoad={handleLoad}
-        loading={loading}
       />
       {error && <div className="app-error">{error}</div>}
       {images.length > 0 ? (
@@ -103,11 +95,9 @@ export default function App() {
           />
         </div>
       ) : (
-        !loading && (
-          <div className="app-placeholder">
-            <p>Enter a directory path and click Load to begin.</p>
-          </div>
-        )
+        <div className="app-placeholder">
+          <p>Select images to start editing.</p>
+        </div>
       )}
     </div>
   );
