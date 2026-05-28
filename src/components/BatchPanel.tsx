@@ -4,10 +4,9 @@ import { processImage } from '../utils/processImage';
 
 interface BatchPanelProps {
   items: BatchItem[];
-  onRemove: (id: string) => void;
 }
 
-export default memo(function BatchPanel({ items, onRemove }: BatchPanelProps) {
+export default memo(function BatchPanel({ items }: BatchPanelProps) {
   const [progress, setProgress] = useState<ConversionProgress | null>(null);
   const [converting, setConverting] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -91,25 +90,9 @@ export default memo(function BatchPanel({ items, onRemove }: BatchPanelProps) {
 
   return (
     <div className="batch-panel">
-      {items.length > 0 && (
-        <div style={{ marginBottom: 10 }}>
-          {items.map((item) => (
-            <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 12 }}>
-              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-dim)' }}>
-                {item.imageName}
-              </span>
-              <button
-                onClick={() => onRemove(item.id)}
-                disabled={converting}
-                className="config-preset-del"
-                aria-label={`Remove ${item.imageName}`}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+      <div style={{ marginBottom: 6, fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        Batch ({items.length} image{items.length !== 1 ? 's' : ''})
+      </div>
 
       {progress && progress.message && (
         <div className="batch-progress" aria-live="polite">

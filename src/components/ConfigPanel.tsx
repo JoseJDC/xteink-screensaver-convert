@@ -1,10 +1,8 @@
 import { memo, useState, useEffect } from 'react';
-import type { OrientationMode } from '../types';
 import type { DitherAlgorithm } from '../utils/dither';
 
 interface Preset {
   name: string;
-  orientation: OrientationMode;
   dither: DitherAlgorithm;
   contrast: number;
 }
@@ -12,11 +10,9 @@ interface Preset {
 const PRESETS_KEY = 'xteink-image-transformer-presets';
 
 interface ConfigPanelProps {
-  orientation: OrientationMode;
   dither: DitherAlgorithm;
   contrast: number;
   onFilesSelected: (files: FileList) => void;
-  onOrientationChange: (orientation: OrientationMode) => void;
   onDitherChange: (dither: DitherAlgorithm) => void;
   onContrastChange: (contrast: number) => void;
 }
@@ -30,8 +26,8 @@ const DITHER_OPTIONS: { value: DitherAlgorithm; label: string }[] = [
 ];
 
 export default memo(function ConfigPanel({
-  orientation, dither, contrast,
-  onFilesSelected, onOrientationChange, onDitherChange, onContrastChange,
+  dither, contrast,
+  onFilesSelected, onDitherChange, onContrastChange,
 }: ConfigPanelProps) {
   const [presets, setPresets] = useState<Preset[]>(() => {
     try {
@@ -49,13 +45,12 @@ export default memo(function ConfigPanel({
   const handleSavePreset = () => {
     const name = presetName.trim();
     if (!name) return;
-    setPresets(prev => [...prev.filter(p => p.name !== name), { name, orientation, dither, contrast }]);
+    setPresets(prev => [...prev.filter(p => p.name !== name), { name, dither, contrast }]);
     setPresetName('');
     setShowPresetInput(false);
   };
 
   const handleLoadPreset = (preset: Preset) => {
-    onOrientationChange(preset.orientation);
     onDitherChange(preset.dither);
     onContrastChange(preset.contrast);
   };
@@ -91,18 +86,6 @@ export default memo(function ConfigPanel({
             </svg>
             Choose files
           </span>
-        </div>
-      </div>
-
-      <div className="config-row">
-        <label>Orient:</label>
-        <div className="config-btn-group">
-          <button className={orientation === 'portrait' ? 'active' : ''} onClick={() => onOrientationChange('portrait')} title="Portrait 3:5 aspect ratio">
-            Portrait (3:5)
-          </button>
-          <button className={orientation === 'landscape' ? 'active' : ''} onClick={() => onOrientationChange('landscape')} title="Landscape 5:3 aspect ratio">
-            Landscape (5:3)
-          </button>
         </div>
       </div>
 

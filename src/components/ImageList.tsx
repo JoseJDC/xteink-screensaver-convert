@@ -55,9 +55,6 @@ function Row({ index, style, images, currentIndex, onSelect }: { index: number; 
       </div>
       <div className="image-list-info">
         <span className="image-list-name" title={img.name}>{img.name}</span>
-        <span className={`image-list-orientation ${img.orientation}`}>
-          {img.orientation === 'portrait' ? '\u2195 Portrait' : '\u2194 Landscape'}
-        </span>
       </div>
     </button>
   );

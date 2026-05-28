@@ -27,7 +27,7 @@ function applyBayer(
 ): void {
   const size = matrix.length;
   for (let y = 0; y < h; y++) {
-    const row = (y % size) * w;
+    const row = y * w;
     const thresholdRow = y % size;
     for (let x = 0; x < w; x++) {
       const idx = (row + x) * 4;

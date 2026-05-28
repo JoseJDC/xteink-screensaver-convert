@@ -17,7 +17,6 @@ interface UseImagesReturn {
   selectImage: (index: number) => void;
   markProcessed: (index: number) => void;
   setOrientation: (index: number, orientation: OrientationMode) => void;
-  setRotation: (index: number, rotation: 0 | 90 | 180 | 270) => void;
   clear: () => void;
 }
 
@@ -62,7 +61,6 @@ export function useImages(): UseImagesReturn {
           url,
           processed: false,
           orientation: 'portrait' as OrientationMode,
-          rotation: 0 as const,
         };
       });
 
@@ -105,14 +103,6 @@ export function useImages(): UseImagesReturn {
     });
   }, []);
 
-  const setRotation = useCallback((index: number, rotation: 0 | 90 | 180 | 270) => {
-    setImages((prev) => {
-      const next = [...prev];
-      if (next[index]) next[index] = { ...next[index], rotation };
-      return next;
-    });
-  }, []);
-
   const clear = useCallback(() => {
     oldUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
     oldUrlsRef.current = [];
@@ -124,6 +114,6 @@ export function useImages(): UseImagesReturn {
   return {
     images, currentIndex, currentImage, loading, error,
     loadFiles, goToNext, goToPrev, selectImage,
-    markProcessed, setOrientation, setRotation, clear,
+    markProcessed, setOrientation, clear,
   };
 }

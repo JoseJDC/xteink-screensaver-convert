@@ -9,15 +9,12 @@ interface ImageEditorProps {
   image: ImageFile;
   dither: DitherAlgorithm;
   contrast: number;
-  spoilerBlur: boolean;
   imageCount: number;
   currentIndex: number;
+  initialCropRect?: CropRect | null;
   onNext: () => void;
   onPrev: () => void;
-  onAddToBatch: (cropRect: CropRect, displayW: number, displayH: number) => void;
-  onSpoilerBlurChange: (blur: boolean) => void;
-  onOrientationChange: (orientation: OrientationMode) => void;
-  onRotationChange: (rotation: 0 | 90 | 180 | 270) => void;
+  onCropRectUpdate: (rect: CropRect, displayW: number, displayH: number) => void;
 }
 
 function toGrayscale(data: Uint8ClampedArray): void {
@@ -51,53 +48,24 @@ function applyContrast(data: Uint8ClampedArray, level: number): void {
   }
 }
 
-function getRotatedImage(img: HTMLImageElement, rotation: 0 | 90 | 180 | 270): HTMLCanvasElement {
-  const srcW = img.naturalWidth;
-  const srcH = img.naturalHeight;
-  const sideways = rotation === 90 || rotation === 270;
-  const c = document.createElement('canvas');
-  c.width = sideways ? srcH : srcW;
-  c.height = sideways ? srcW : srcH;
-  if (rotation === 0) {
-    c.getContext('2d')!.drawImage(img, 0, 0);
-  } else {
-    const ctx = c.getContext('2d')!;
-    ctx.save();
-    ctx.translate(c.width / 2, c.height / 2);
-    ctx.rotate(rotation * Math.PI / 180);
-    ctx.drawImage(img, -srcW / 2, -srcH / 2);
-    ctx.restore();
-  }
-  return c;
-}
-
 export default memo(function ImageEditor({
   image,
   dither,
   contrast,
-  spoilerBlur,
   imageCount,
   currentIndex,
+  initialCropRect,
   onNext,
   onPrev,
-  onAddToBatch,
-  onSpoilerBlurChange,
-  onOrientationChange,
-  onRotationChange,
+  onCropRectUpdate,
 }: ImageEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawTimerRef = useRef(0);
-  const rotatedCacheRef = useRef<{ rotation: number; canvas: HTMLCanvasElement } | null>(null);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [displaySize, setDisplaySize] = useState({ w: 0, h: 0 });
-  const [cropRect, setCropRect] = useState<CropRect>({ x: 0, y: 0, width: 0, height: 0 });
-  const [added, setAdded] = useState(false);
-
-  const rotation = image?.rotation ?? 0;
-  const isRotated = rotation !== 0;
-  const sideways = rotation === 90 || rotation === 270;
+  const [editorOrientation, setEditorOrientation] = useState<OrientationMode>('portrait');
 
   const updateSize = useCallback(() => {
     const container = containerRef.current;
@@ -107,11 +75,7 @@ export default memo(function ImageEditor({
     const maxW = container.clientWidth;
     const maxH = container.clientHeight - 60;
 
-    const natW = img.naturalWidth;
-    const natH = img.naturalHeight;
-    const effW = sideways ? natH : natW;
-    const effH = sideways ? natW : natH;
-    const ratio = effW / effH;
+    const ratio = img.naturalWidth / img.naturalHeight;
 
     let displayW: number;
     let displayH: number;
@@ -126,7 +90,13 @@ export default memo(function ImageEditor({
 
     setDisplaySize({ w: Math.floor(displayW), h: Math.floor(displayH) });
     setImgLoaded(true);
-  }, [sideways]);
+  }, []);
+
+  const handleCropChange = useCallback((rect: CropRect) => {
+    if (displaySize.w > 0 && displaySize.h > 0) {
+      onCropRectUpdate(rect, displaySize.w, displaySize.h);
+    }
+  }, [onCropRectUpdate, displaySize.w, displaySize.h]);
 
   const drawCanvas = useCallback(() => {
     const img = imgRef.current;
@@ -141,8 +111,7 @@ export default memo(function ImageEditor({
     canvas.height = h;
     const ctx = canvas.getContext('2d')!;
 
-    const rotated = getRotatedImage(img, rotation);
-    ctx.drawImage(rotated, 0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
 
     const imageData = ctx.getImageData(0, 0, w, h);
     toGrayscale(imageData.data);
@@ -151,18 +120,11 @@ export default memo(function ImageEditor({
       applyDither(imageData, dither);
     }
     ctx.putImageData(imageData, 0, 0);
-  }, [displaySize.w, displaySize.h, rotation, dither, contrast]);
+  }, [displaySize.w, displaySize.h, dither, contrast]);
 
   useEffect(() => {
     setImgLoaded(false);
-    setAdded(false);
-    setCropRect({ x: 0, y: 0, width: 0, height: 0 });
-    rotatedCacheRef.current = null;
   }, [image?.url]);
-
-  useEffect(() => {
-    rotatedCacheRef.current = null;
-  }, [rotation]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -177,17 +139,14 @@ export default memo(function ImageEditor({
     if (!imgLoaded || displaySize.w <= 0) return;
     drawTimerRef.current = window.setTimeout(drawCanvas, 80);
     return () => clearTimeout(drawTimerRef.current);
-  }, [imgLoaded, displaySize.w, displaySize.h, rotation, dither, contrast, drawCanvas]);
+  }, [imgLoaded, displaySize.w, displaySize.h, dither, contrast, drawCanvas]);
 
   const handleImageLoad = () => {
+    const img = imgRef.current;
+    if (img) {
+      setEditorOrientation(img.naturalWidth > img.naturalHeight ? 'landscape' : 'portrait');
+    }
     updateSize();
-  };
-
-  const handleAddToBatch = () => {
-    if (!cropRect.width || !cropRect.height) return;
-    onAddToBatch(cropRect, displaySize.w, displaySize.h);
-    setAdded(true);
-    setTimeout(() => setAdded(false), 1200);
   };
 
   return (
@@ -219,8 +178,9 @@ export default memo(function ImageEditor({
             <CropOverlay
               containerWidth={displaySize.w}
               containerHeight={displaySize.h}
-              orientation={image.orientation}
-              onCropChange={setCropRect}
+              orientation={editorOrientation}
+              initialRect={initialCropRect}
+              onCropChange={handleCropChange}
             />
           )}
         </div>
@@ -238,20 +198,11 @@ export default memo(function ImageEditor({
           imageCount={imageCount}
           onPrev={onPrev}
           onNext={onNext}
-          onAddToBatch={handleAddToBatch}
-          canAdd={!!cropRect.width && !!cropRect.height}
-          orientation={image.orientation}
-          spoilerBlur={spoilerBlur}
-          isRotated={isRotated}
-          onOrientationChange={onOrientationChange}
-          onSpoilerBlurChange={onSpoilerBlurChange}
-          onRotationChange={onRotationChange}
+          orientation={editorOrientation}
+          onOrientationChange={setEditorOrientation}
         />
       )}
 
-      {added && (
-        <div className="added-toast">Added to batch!</div>
-      )}
     </div>
   );
 });

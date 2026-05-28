@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import type { CropRect, BatchItem, OrientationMode } from './types';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import type { CropRect, BatchItem } from './types';
 import type { DitherAlgorithm } from './utils/dither';
 import { useImages } from './hooks/useImages';
 import ConfigPanel from './components/ConfigPanel';
@@ -8,15 +8,12 @@ import BatchPanel from './components/BatchPanel';
 import ImageEditor from './components/ImageEditor';
 import './App.css';
 
-let batchIdCounter = 0;
-
 export default function App() {
   const images = useImages();
   const [dither, setDither] = useState<DitherAlgorithm>('none');
   const [contrast, setContrast] = useState(0);
-  const [batch, setBatch] = useState<BatchItem[]>([]);
+  const [cropStates, setCropStates] = useState<Record<string, { rect: CropRect; displayW: number; displayH: number }>>({});
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [spoilerBlur, setSpoilerBlur] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const dragCount = useRef(0);
 
@@ -40,36 +37,36 @@ export default function App() {
     images.loadFiles(files);
   }, [images]);
 
-  const currentOrientation: OrientationMode = images.currentImage?.orientation ?? 'portrait';
+  const handleCropRectUpdate = useCallback((rect: CropRect, displayW: number, displayH: number) => {
+    if (!images.currentImage) return;
+    setCropStates(prev => ({
+      ...prev,
+      [images.currentImage!.name]: { rect, displayW, displayH },
+    }));
+  }, [images.currentImage]);
 
-  const handleOrientationChange = useCallback((o: OrientationMode) => {
-    if (images.currentImage) {
-      images.setOrientation(images.currentIndex, o);
-    }
-  }, [images]);
+  const batchItems = useMemo((): BatchItem[] =>
+    images.images
+      .filter(img => {
+        const cs = cropStates[img.name];
+        return cs && cs.rect.width > 0 && cs.rect.height > 0;
+      })
+      .map(img => {
+        const cs = cropStates[img.name];
+        return {
+          id: img.name,
+          imageUrl: img.url,
+          imageName: img.name,
+          cropRect: cs!.rect,
+          displayWidth: cs!.displayW,
+          displayHeight: cs!.displayH,
+          orientation: img.orientation,
+          dither,
+        };
+      }),
+  [images.images, cropStates, dither]);
 
-  const handleAddToBatch = useCallback(
-    (cropRect: CropRect, displayW: number, displayH: number) => {
-      const currentImage = images.currentImage;
-      if (!currentImage) return;
-      const item: BatchItem = {
-        id: String(++batchIdCounter),
-        imageUrl: currentImage.url,
-        imageName: currentImage.name,
-        cropRect,
-        displayWidth: displayW,
-        displayHeight: displayH,
-        orientation: currentImage.orientation,
-        dither,
-      };
-      setBatch((prev) => [...prev, item]);
-    },
-    [images.currentImage, dither]
-  );
-
-  const handleRemoveFromBatch = useCallback((id: string) => {
-    setBatch((prev) => prev.filter((item) => item.id !== id));
-  }, []);
+  const currentCropRect = images.currentImage ? cropStates[images.currentImage.name]?.rect : null;
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -169,11 +166,9 @@ export default function App() {
       <main className="app-main">
         <aside className={`app-sidebar${sidebarCollapsed ? ' collapsed' : ''}`}>
           <ConfigPanel
-            orientation={currentOrientation}
             dither={dither}
             contrast={contrast}
             onFilesSelected={handleFilesSelected}
-            onOrientationChange={handleOrientationChange}
             onDitherChange={setDither}
             onContrastChange={setContrast}
           />
@@ -185,6 +180,12 @@ export default function App() {
               images={images.images}
               currentIndex={images.currentIndex}
               onSelect={images.selectImage}
+            />
+          )}
+
+          {images.images.length > 0 && (
+            <BatchPanel
+              items={batchItems}
             />
           )}
         </aside>
@@ -211,15 +212,12 @@ export default function App() {
               image={images.currentImage}
               dither={dither}
               contrast={contrast}
-              spoilerBlur={spoilerBlur}
               imageCount={images.images.length}
               currentIndex={images.currentIndex}
+              initialCropRect={currentCropRect}
               onNext={images.goToNext}
               onPrev={images.goToPrev}
-              onAddToBatch={handleAddToBatch}
-              onSpoilerBlurChange={setSpoilerBlur}
-              onOrientationChange={handleOrientationChange}
-              onRotationChange={(r) => images.setRotation(images.currentIndex, r)}
+              onCropRectUpdate={handleCropRectUpdate}
             />
           ) : (
             <div className="app-empty">
@@ -228,7 +226,7 @@ export default function App() {
                   <rect x="8" y="8" width="64" height="64" rx="6" stroke="currentColor" strokeWidth="2" fill="none" opacity="0.3"/>
                   <rect x="16" y="16" width="24" height="18" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.2"/>
                   <rect x="44" y="16" width="20" height="18" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.2"/>
-                  <rect x="16" y="38" width="20" height="24" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.2"/>
+                  <rect x="16" y="38" width="24" height="24" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.2"/>
                   <rect x="40" y="38" width="24" height="24" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.2"/>
                   <line x1="8" y1="36" x2="72" y2="36" stroke="currentColor" strokeWidth="0.5" opacity="0.15"/>
                   <line x1="38" y1="10" x2="38" y2="70" stroke="currentColor" strokeWidth="0.5" opacity="0.15"/>
@@ -240,13 +238,6 @@ export default function App() {
                 Crop images manually and convert to 24-bit BMP format for Xteink e-readers
               </p>
             </div>
-          )}
-
-          {images.images.length > 0 && (
-            <BatchPanel
-              items={batch}
-              onRemove={handleRemoveFromBatch}
-            />
           )}
         </section>
       </main>
