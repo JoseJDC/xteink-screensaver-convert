@@ -11,6 +11,9 @@ export interface ImageFile {
   orientation: OrientationMode;
   dither: DitherAlgorithm;
   contrast: number;
+  cropRect?: CropRect;
+  displayW?: number;
+  displayH?: number;
   source?: string;
 }
 

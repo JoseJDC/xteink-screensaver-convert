@@ -1,15 +1,14 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import type { CropRect, BatchItem } from './types';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import type { CropRect } from './types';
 import { useImages } from './hooks/useImages';
 import ConfigPanel from './components/ConfigPanel';
 import ImageList from './components/ImageList';
-import BatchPanel from './components/BatchPanel';
 import ImageEditor from './components/ImageEditor';
+import DownloadPanel from './components/DownloadPanel';
 import './App.css';
 
 export default function App() {
   const images = useImages();
-  const [cropStates, setCropStates] = useState<Record<string, { rect: CropRect; displayW: number; displayH: number }>>({});
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const dragCount = useRef(0);
@@ -35,35 +34,12 @@ export default function App() {
   }, [images]);
 
   const handleCropRectUpdate = useCallback((rect: CropRect, displayW: number, displayH: number) => {
-    if (!images.currentImage) return;
-    setCropStates(prev => ({
-      ...prev,
-      [images.currentImage!.name]: { rect, displayW, displayH },
-    }));
-  }, [images.currentImage]);
+    images.setCropRect(images.currentIndex, rect, displayW, displayH);
+  }, [images]);
 
-  const batchItems = useMemo((): BatchItem[] =>
-    images.images
-      .filter(img => {
-        const cs = cropStates[img.name];
-        return cs && cs.rect.width > 0 && cs.rect.height > 0;
-      })
-      .map(img => {
-        const cs = cropStates[img.name];
-        return {
-          id: img.name,
-          imageUrl: img.url,
-          imageName: img.name,
-          cropRect: cs!.rect,
-          displayWidth: cs!.displayW,
-          displayHeight: cs!.displayH,
-          orientation: img.orientation,
-          dither: img.dither,
-        };
-      }),
-  [images.images, cropStates]);
-
-  const currentCropRect = images.currentImage ? cropStates[images.currentImage.name]?.rect : null;
+  const currentCropRect = images.currentImage?.cropRect ?? null;
+  const currentDither = images.currentImage?.dither ?? 'none';
+  const currentContrast = images.currentImage?.contrast ?? 0;
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -112,9 +88,6 @@ export default function App() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [images]);
-
-  const currentDither = images.currentImage?.dither ?? 'none';
-  const currentContrast = images.currentImage?.contrast ?? 0;
 
   return (
     <div className="app">
@@ -184,9 +157,7 @@ export default function App() {
           )}
 
           {images.images.length > 0 && (
-            <BatchPanel
-              items={batchItems}
-            />
+            <DownloadPanel images={images.images} />
           )}
         </aside>
 

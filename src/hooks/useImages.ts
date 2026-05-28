@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { DitherAlgorithm } from '../utils/dither';
-import type { ImageFile, OrientationMode } from '../types';
+import type { CropRect, ImageFile, OrientationMode } from '../types';
 
 const IMAGE_TYPES = new Set([
   'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp',
@@ -20,6 +20,7 @@ interface UseImagesReturn {
   setOrientation: (index: number, orientation: OrientationMode) => void;
   setDither: (index: number, dither: DitherAlgorithm) => void;
   setContrast: (index: number, contrast: number) => void;
+  setCropRect: (index: number, rect: CropRect, displayW: number, displayH: number) => void;
   clear: () => void;
 }
 
@@ -124,6 +125,14 @@ export function useImages(): UseImagesReturn {
     });
   }, []);
 
+  const setCropRect = useCallback((index: number, rect: CropRect, displayW: number, displayH: number) => {
+    setImages((prev) => {
+      const next = [...prev];
+      if (next[index]) next[index] = { ...next[index], cropRect: rect, displayW, displayH };
+      return next;
+    });
+  }, []);
+
   const clear = useCallback(() => {
     oldUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
     oldUrlsRef.current = [];
@@ -135,6 +144,6 @@ export function useImages(): UseImagesReturn {
   return {
     images, currentIndex, currentImage, loading, error,
     loadFiles, goToNext, goToPrev, selectImage,
-    markProcessed, setOrientation, setDither, setContrast, clear,
+    markProcessed, setOrientation, setDither, setContrast, setCropRect, clear,
   };
 }
