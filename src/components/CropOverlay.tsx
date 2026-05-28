@@ -5,7 +5,6 @@ interface CropOverlayProps {
   containerWidth: number;
   containerHeight: number;
   orientation: OrientationMode;
-  initialRect?: CropRect | null;
   imageKey?: string;
   onCropChange: (rect: CropRect) => void;
 }
@@ -48,18 +47,10 @@ const HANDLE_STYLES: Record<HandleId, React.CSSProperties> = {
   w: { top: '50%', left: -HANDLE_OFFSET, marginTop: -HANDLE_OFFSET, cursor: 'ew-resize' },
 };
 
-function rectMatchesOrientation(rect: CropRect, orientation: OrientationMode): boolean {
-  if (rect.width <= 0 || rect.height <= 0) return false;
-  const ratio = rect.width / rect.height;
-  const expected = orientation === 'portrait' ? 3 / 5 : 5 / 3;
-  return Math.abs(ratio - expected) < 0.01;
-}
-
 export default function CropOverlay({
   containerWidth,
   containerHeight,
   orientation,
-  initialRect,
   imageKey,
   onCropChange,
 }: CropOverlayProps) {
@@ -93,8 +84,8 @@ export default function CropOverlay({
         }
       }
 
-      const x = clamp((w - cropW) / 2, 0, w - cropW);
-      const y = clamp((h - cropH) / 2, 0, h - cropH);
+      const x = Math.round(clamp((w - cropW) / 2, 0, w - cropW));
+      const y = Math.round(clamp((h - cropH) / 2, 0, h - cropH));
 
       return { x, y, width: cropW, height: cropH };
     },
@@ -103,15 +94,9 @@ export default function CropOverlay({
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (initialRect && initialRect.width > 0 && initialRect.height > 0 &&
-        rectMatchesOrientation(initialRect, orientation)) {
-      setRect(initialRect);
-      onCropChange(initialRect);
-    } else {
-      const newRect = computeRect(containerWidth, containerHeight);
-      setRect(newRect);
-      onCropChange(newRect);
-    }
+    const newRect = computeRect(containerWidth, containerHeight);
+    setRect(newRect);
+    onCropChange(newRect);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [containerWidth, containerHeight, orientation, imageKey]);
   /* eslint-enable react-hooks/set-state-in-effect */

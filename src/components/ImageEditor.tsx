@@ -15,6 +15,7 @@ interface ImageEditorProps {
   onNext: () => void;
   onPrev: () => void;
   onCropRectUpdate: (rect: CropRect, displayW: number, displayH: number) => void;
+  onOrientationUpdate?: (orientation: OrientationMode) => void;
 }
 
 function toGrayscale(data: Uint8ClampedArray): void {
@@ -58,6 +59,7 @@ export default memo(function ImageEditor({
   onNext,
   onPrev,
   onCropRectUpdate,
+  onOrientationUpdate,
 }: ImageEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -98,6 +100,11 @@ export default memo(function ImageEditor({
     }
   }, [onCropRectUpdate, displaySize.w, displaySize.h]);
 
+  const handleOrientationChange = useCallback((orientation: OrientationMode) => {
+    setEditorOrientation(orientation);
+    onOrientationUpdate?.(orientation);
+  }, [onOrientationUpdate]);
+
   const drawCanvas = useCallback(() => {
     const img = imgRef.current;
     const canvas = canvasRef.current;
@@ -124,6 +131,9 @@ export default memo(function ImageEditor({
 
   useEffect(() => {
     setImgLoaded(false);
+    if (image?.orientation) {
+      setEditorOrientation(image.orientation);
+    }
   }, [image?.url]);
 
   useEffect(() => {
@@ -144,7 +154,11 @@ export default memo(function ImageEditor({
   const handleImageLoad = () => {
     const img = imgRef.current;
     if (img) {
-      setEditorOrientation(img.naturalWidth > img.naturalHeight ? 'landscape' : 'portrait');
+      if (!initialCropRect) {
+        const detected = img.naturalWidth > img.naturalHeight ? 'landscape' : 'portrait';
+        setEditorOrientation(detected);
+        onOrientationUpdate?.(detected);
+      }
     }
     updateSize();
   };
@@ -179,7 +193,6 @@ export default memo(function ImageEditor({
               containerWidth={displaySize.w}
               containerHeight={displaySize.h}
               orientation={editorOrientation}
-              initialRect={initialCropRect}
               imageKey={image?.url}
               onCropChange={handleCropChange}
             />
@@ -200,7 +213,7 @@ export default memo(function ImageEditor({
           onPrev={onPrev}
           onNext={onNext}
           orientation={editorOrientation}
-          onOrientationChange={setEditorOrientation}
+          onOrientationChange={handleOrientationChange}
         />
       )}
 

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import type { CropRect } from './types';
+import type { CropRect, OrientationMode } from './types';
 import { useImages } from './hooks/useImages';
 import ConfigPanel from './components/ConfigPanel';
 import ImageList from './components/ImageList';
@@ -35,6 +35,10 @@ export default function App() {
 
   const handleCropRectUpdate = useCallback((rect: CropRect, displayW: number, displayH: number) => {
     images.setCropRect(images.currentIndex, rect, displayW, displayH);
+  }, [images]);
+
+  const handleOrientationUpdate = useCallback((orientation: OrientationMode) => {
+    images.setOrientation(images.currentIndex, orientation);
   }, [images]);
 
   const currentCropRect = images.currentImage?.cropRect ?? null;
@@ -189,6 +193,7 @@ export default function App() {
               onNext={images.goToNext}
               onPrev={images.goToPrev}
               onCropRectUpdate={handleCropRectUpdate}
+              onOrientationUpdate={handleOrientationUpdate}
             />
           ) : (
             <div className="app-empty">

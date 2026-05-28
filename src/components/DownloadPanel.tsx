@@ -61,13 +61,12 @@ export default memo(function DownloadPanel({ images }: DownloadPanelProps) {
 
         const hasCropRect = img.cropRect && img.cropRect.width > 0 && img.cropRect.height > 0;
 
-        const orientation = hasCropRect
-          ? img.orientation
-          : (el.naturalWidth > el.naturalHeight ? 'landscape' : 'portrait') as OrientationMode;
-
         const cropRect = hasCropRect
           ? img.cropRect!
-          : computeDefaultCropRect(el.naturalWidth, el.naturalHeight, orientation);
+          : computeDefaultCropRect(el.naturalWidth, el.naturalHeight, 
+              (el.naturalWidth > el.naturalHeight ? 'landscape' : 'portrait') as OrientationMode);
+
+        const orientation = (cropRect.width / cropRect.height > 1 ? 'landscape' : 'portrait') as OrientationMode;
 
         const displayW = hasCropRect && img.displayW ? img.displayW : el.naturalWidth;
         const displayH = hasCropRect && img.displayH ? img.displayH : el.naturalHeight;
