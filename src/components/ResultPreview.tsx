@@ -1,10 +1,10 @@
-import type { CropOrientation } from '../types';
+import type { OrientationMode } from '../types';
 
 interface ResultPreviewProps {
   dataUrl: string;
   bmpUrl: string | null;
   imageName: string;
-  orientation: CropOrientation;
+  orientation: OrientationMode;
   onClose: () => void;
 }
 

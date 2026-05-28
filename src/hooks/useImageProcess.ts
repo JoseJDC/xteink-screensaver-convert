@@ -1,5 +1,5 @@
 import { useRef, useCallback } from 'react';
-import type { CropRect, CropOrientation } from '../types';
+import type { CropRect, OrientationMode } from '../types';
 
 interface ProcessResult {
   dataUrl: string;
@@ -31,7 +31,7 @@ export function useImageProcess() {
       displayWidth: number,
       displayHeight: number,
       cropRect: CropRect,
-      orientation: CropOrientation
+      orientation: OrientationMode
     ): Promise<ProcessResult> => {
       const img = await loadImage(imageUrl);
 

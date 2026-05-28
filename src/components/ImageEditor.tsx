@@ -1,39 +1,103 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
-import type { CropOrientation, CropRect, ImageFile } from '../types';
+import { useRef, useState, useEffect, useCallback, memo } from 'react';
+import type { CropRect, ImageFile, OrientationMode } from '../types';
 import type { DitherAlgorithm } from '../utils/dither';
 import { applyDither } from '../utils/dither';
 import CropOverlay from './CropOverlay';
 import Toolbar from './Toolbar';
 
 interface ImageEditorProps {
-  image: ImageFile | null;
-  orientation: CropOrientation;
+  image: ImageFile;
   dither: DitherAlgorithm;
+  contrast: number;
+  spoilerBlur: boolean;
   imageCount: number;
   currentIndex: number;
   onNext: () => void;
   onPrev: () => void;
   onAddToBatch: (cropRect: CropRect, displayW: number, displayH: number) => void;
+  onSpoilerBlurChange: (blur: boolean) => void;
+  onOrientationChange: (orientation: OrientationMode) => void;
+  onRotationChange: (rotation: 0 | 90 | 180 | 270) => void;
 }
 
-export default function ImageEditor({
+function toGrayscale(data: Uint8ClampedArray): void {
+  for (let i = 0; i < data.length; i += 4) {
+    const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    data[i] = data[i + 1] = data[i + 2] = gray;
+  }
+}
+
+function applyContrast(data: Uint8ClampedArray, level: number): void {
+  if (level === 0) return;
+  let min = 255;
+  let max = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    const v = data[i];
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  const range = max - min;
+  if (range < 5) return;
+  const factor = 1 + level * 0.15;
+  const mid = (min + max) / 2;
+  const halfRange = (range / 2) * factor;
+  const newMin = Math.max(0, Math.round(mid - halfRange));
+  const newMax = Math.min(255, Math.round(mid + halfRange));
+  const newRange = newMax - newMin;
+  if (newRange < 1) return;
+  for (let i = 0; i < data.length; i += 4) {
+    const v = data[i];
+    data[i] = data[i + 1] = data[i + 2] = Math.max(0, Math.min(255, Math.round(((v - newMin) / newRange) * 255)));
+  }
+}
+
+function getRotatedImage(img: HTMLImageElement, rotation: 0 | 90 | 180 | 270): HTMLCanvasElement {
+  const srcW = img.naturalWidth;
+  const srcH = img.naturalHeight;
+  const sideways = rotation === 90 || rotation === 270;
+  const c = document.createElement('canvas');
+  c.width = sideways ? srcH : srcW;
+  c.height = sideways ? srcW : srcH;
+  if (rotation === 0) {
+    c.getContext('2d')!.drawImage(img, 0, 0);
+  } else {
+    const ctx = c.getContext('2d')!;
+    ctx.save();
+    ctx.translate(c.width / 2, c.height / 2);
+    ctx.rotate(rotation * Math.PI / 180);
+    ctx.drawImage(img, -srcW / 2, -srcH / 2);
+    ctx.restore();
+  }
+  return c;
+}
+
+export default memo(function ImageEditor({
   image,
-  orientation,
   dither,
+  contrast,
+  spoilerBlur,
   imageCount,
   currentIndex,
   onNext,
   onPrev,
   onAddToBatch,
+  onSpoilerBlurChange,
+  onOrientationChange,
+  onRotationChange,
 }: ImageEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawTimerRef = useRef(0);
+  const rotatedCacheRef = useRef<{ rotation: number; canvas: HTMLCanvasElement } | null>(null);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [displaySize, setDisplaySize] = useState({ w: 0, h: 0 });
   const [cropRect, setCropRect] = useState<CropRect>({ x: 0, y: 0, width: 0, height: 0 });
   const [added, setAdded] = useState(false);
+
+  const rotation = image?.rotation ?? 0;
+  const isRotated = rotation !== 0;
+  const sideways = rotation === 90 || rotation === 270;
 
   const updateSize = useCallback(() => {
     const container = containerRef.current;
@@ -43,7 +107,12 @@ export default function ImageEditor({
     const maxW = container.clientWidth;
     const maxH = container.clientHeight - 60;
 
-    const ratio = img.naturalWidth / img.naturalHeight;
+    const natW = img.naturalWidth;
+    const natH = img.naturalHeight;
+    const effW = sideways ? natH : natW;
+    const effH = sideways ? natW : natH;
+    const ratio = effW / effH;
+
     let displayW: number;
     let displayH: number;
 
@@ -57,7 +126,7 @@ export default function ImageEditor({
 
     setDisplaySize({ w: Math.floor(displayW), h: Math.floor(displayH) });
     setImgLoaded(true);
-  }, []);
+  }, [sideways]);
 
   const drawCanvas = useCallback(() => {
     const img = imgRef.current;
@@ -72,25 +141,28 @@ export default function ImageEditor({
     canvas.height = h;
     const ctx = canvas.getContext('2d')!;
 
-    ctx.filter = 'none';
-    ctx.drawImage(img, 0, 0, w, h);
+    const rotated = getRotatedImage(img, rotation);
+    ctx.drawImage(rotated, 0, 0, w, h);
 
-    ctx.filter = 'grayscale(100%)';
-    ctx.drawImage(canvas, 0, 0);
-    ctx.filter = 'none';
-
+    const imageData = ctx.getImageData(0, 0, w, h);
+    toGrayscale(imageData.data);
+    applyContrast(imageData.data, contrast);
     if (dither !== 'none') {
-      const imageData = ctx.getImageData(0, 0, w, h);
-      const dithered = applyDither(imageData, dither);
-      ctx.putImageData(dithered, 0, 0);
+      applyDither(imageData, dither);
     }
-  }, [displaySize.w, displaySize.h, dither]);
+    ctx.putImageData(imageData, 0, 0);
+  }, [displaySize.w, displaySize.h, rotation, dither, contrast]);
 
   useEffect(() => {
     setImgLoaded(false);
     setAdded(false);
     setCropRect({ x: 0, y: 0, width: 0, height: 0 });
+    rotatedCacheRef.current = null;
   }, [image?.url]);
+
+  useEffect(() => {
+    rotatedCacheRef.current = null;
+  }, [rotation]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -105,7 +177,7 @@ export default function ImageEditor({
     if (!imgLoaded || displaySize.w <= 0) return;
     drawTimerRef.current = window.setTimeout(drawCanvas, 80);
     return () => clearTimeout(drawTimerRef.current);
-  }, [imgLoaded, displaySize.w, displaySize.h, dither, drawCanvas]);
+  }, [imgLoaded, displaySize.w, displaySize.h, rotation, dither, contrast, drawCanvas]);
 
   const handleImageLoad = () => {
     updateSize();
@@ -117,14 +189,6 @@ export default function ImageEditor({
     setAdded(true);
     setTimeout(() => setAdded(false), 1200);
   };
-
-  if (!image) {
-    return (
-      <div className="image-editor empty">
-        <p>Load a directory to start editing</p>
-      </div>
-    );
-  }
 
   return (
     <div className="image-editor" ref={containerRef}>
@@ -139,8 +203,8 @@ export default function ImageEditor({
         >
           <img
             ref={imgRef}
-            src={image.url}
-            alt={image.name}
+            src={image?.url}
+            alt={image?.name}
             className="image-loader-hidden"
             onLoad={handleImageLoad}
           />
@@ -155,7 +219,7 @@ export default function ImageEditor({
             <CropOverlay
               containerWidth={displaySize.w}
               containerHeight={displaySize.h}
-              orientation={orientation}
+              orientation={image.orientation}
               onCropChange={setCropRect}
             />
           )}
@@ -168,18 +232,26 @@ export default function ImageEditor({
         )}
       </div>
 
-      <Toolbar
-        currentIndex={currentIndex}
-        imageCount={imageCount}
-        onPrev={onPrev}
-        onNext={onNext}
-        onAddToBatch={handleAddToBatch}
-        canAdd={!!cropRect.width && !!cropRect.height}
-      />
+      {imgLoaded && (
+        <Toolbar
+          currentIndex={currentIndex}
+          imageCount={imageCount}
+          onPrev={onPrev}
+          onNext={onNext}
+          onAddToBatch={handleAddToBatch}
+          canAdd={!!cropRect.width && !!cropRect.height}
+          orientation={image.orientation}
+          spoilerBlur={spoilerBlur}
+          isRotated={isRotated}
+          onOrientationChange={onOrientationChange}
+          onSpoilerBlurChange={onSpoilerBlurChange}
+          onRotationChange={onRotationChange}
+        />
+      )}
 
       {added && (
         <div className="added-toast">Added to batch!</div>
       )}
     </div>
   );
-}
+});

@@ -1,31 +1,31 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import type { ImageFile } from '../types';
+import type { ImageFile, OrientationMode } from '../types';
 
 const IMAGE_TYPES = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/gif',
-  'image/webp',
-  'image/bmp',
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp',
 ]);
 
 interface UseImagesReturn {
   images: ImageFile[];
   currentIndex: number;
+  currentImage: ImageFile | null;
   loading: boolean;
-  error: string;
+  error: string | null;
   loadFiles: (files: FileList) => void;
   goToNext: () => void;
   goToPrev: () => void;
   selectImage: (index: number) => void;
   markProcessed: (index: number) => void;
+  setOrientation: (index: number, orientation: OrientationMode) => void;
+  setRotation: (index: number, rotation: 0 | 90 | 180 | 270) => void;
+  clear: () => void;
 }
 
 export function useImages(): UseImagesReturn {
   const [images, setImages] = useState<ImageFile[]>([]);
-  const [currentIndex, setCurrentIndex] = useState<number>(0);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string>('');
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const oldUrlsRef = useRef<string[]>([]);
 
   useEffect(() => {
@@ -34,17 +34,21 @@ export function useImages(): UseImagesReturn {
     };
   }, []);
 
+  const currentImage = images.length > 0 ? images[currentIndex] : null;
+
   const loadFiles = useCallback((files: FileList) => {
     setLoading(true);
-    setError('');
+    setError(null);
 
     try {
-      const validFiles = Array.from(files).filter((f) =>
-        IMAGE_TYPES.has(f.type)
+      const validFiles = Array.from(files).filter(
+        (f) => IMAGE_TYPES.has(f.type) || /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(f.name)
       );
 
       if (validFiles.length === 0) {
-        throw new Error('No valid image files found. Supported: JPEG, PNG, GIF, WebP, BMP');
+        setError('No valid image files found. Supported: JPEG, PNG, GIF, WebP, BMP');
+        setLoading(false);
+        return;
       }
 
       oldUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
@@ -53,7 +57,13 @@ export function useImages(): UseImagesReturn {
       const list: ImageFile[] = validFiles.map((file) => {
         const url = URL.createObjectURL(file);
         newUrls.push(url);
-        return { name: file.name, url, processed: false };
+        return {
+          name: file.name,
+          url,
+          processed: false,
+          orientation: 'portrait' as OrientationMode,
+          rotation: 0 as const,
+        };
       });
 
       oldUrlsRef.current = newUrls;
@@ -87,15 +97,33 @@ export function useImages(): UseImagesReturn {
     );
   }, []);
 
+  const setOrientation = useCallback((index: number, orientation: OrientationMode) => {
+    setImages((prev) => {
+      const next = [...prev];
+      if (next[index]) next[index] = { ...next[index], orientation };
+      return next;
+    });
+  }, []);
+
+  const setRotation = useCallback((index: number, rotation: 0 | 90 | 180 | 270) => {
+    setImages((prev) => {
+      const next = [...prev];
+      if (next[index]) next[index] = { ...next[index], rotation };
+      return next;
+    });
+  }, []);
+
+  const clear = useCallback(() => {
+    oldUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+    oldUrlsRef.current = [];
+    setImages([]);
+    setCurrentIndex(0);
+    setError(null);
+  }, []);
+
   return {
-    images,
-    currentIndex,
-    loading,
-    error,
-    loadFiles,
-    goToNext,
-    goToPrev,
-    selectImage,
-    markProcessed,
+    images, currentIndex, currentImage, loading, error,
+    loadFiles, goToNext, goToPrev, selectImage,
+    markProcessed, setOrientation, setRotation, clear,
   };
 }

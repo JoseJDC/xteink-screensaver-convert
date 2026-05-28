@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import type { BatchItem } from '../types';
+import { useState, useRef, memo } from 'react';
+import type { BatchItem, ConversionProgress } from '../types';
 import { processImage } from '../utils/processImage';
 
 interface BatchPanelProps {
@@ -7,14 +7,17 @@ interface BatchPanelProps {
   onRemove: (id: string) => void;
 }
 
-export default function BatchPanel({ items, onRemove }: BatchPanelProps) {
-  const [processing, setProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
+export default memo(function BatchPanel({ items, onRemove }: BatchPanelProps) {
+  const [progress, setProgress] = useState<ConversionProgress | null>(null);
+  const [converting, setConverting] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   const handleDownloadAll = async () => {
     if (items.length === 0) return;
-    setProcessing(true);
-    setProgress(0);
+    setConverting(true);
+    abortRef.current = new AbortController();
+
+    setProgress({ current: 0, total: items.length, message: 'Processing images\u2026' });
 
     try {
       const JSZipMod = await import('jszip');
@@ -23,7 +26,10 @@ export default function BatchPanel({ items, onRemove }: BatchPanelProps) {
       const nameCount: Record<string, number> = {};
 
       for (let i = 0; i < items.length; i++) {
+        if (abortRef.current?.signal.aborted) break;
         const item = items[i];
+
+        setProgress({ current: i, total: items.length, message: `Processing ${item.imageName}\u2026` });
 
         const img = await new Promise<HTMLImageElement>((resolve, reject) => {
           const el = new Image();
@@ -31,6 +37,8 @@ export default function BatchPanel({ items, onRemove }: BatchPanelProps) {
           el.onerror = () => reject(new Error(`Failed to load ${item.imageName}`));
           el.src = item.imageUrl;
         });
+
+        if (abortRef.current?.signal.aborted) break;
 
         const result = await processImage(
           img,
@@ -48,71 +56,99 @@ export default function BatchPanel({ items, onRemove }: BatchPanelProps) {
         const fileName = `${baseName}_${item.orientation}${suffix}.bmp`;
 
         zip.file(fileName, result.blob);
-        setProgress(i + 1);
+        setProgress({ current: i + 1, total: items.length, message: `Processed ${item.imageName}` });
       }
 
-      const zipBlob = await zip.generateAsync({ type: 'blob' });
-      const url = URL.createObjectURL(zipBlob);
-      const link = document.createElement('a');
-      link.download = 'batch_processed.zip';
-      link.href = url;
-      link.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Batch processing failed:', err);
+      if (!abortRef.current?.signal.aborted) {
+        setProgress({ current: items.length, total: items.length, message: 'Creating ZIP\u2026' });
+        const zipBlob = await zip.generateAsync({ type: 'blob' }, (md) => {
+          setProgress({ current: Math.round(md.percent), total: 100, message: 'Compressing ZIP\u2026' });
+        });
+        const url = URL.createObjectURL(zipBlob);
+        const link = document.createElement('a');
+        link.download = 'batch_processed.zip';
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+        setProgress({ current: 0, total: 0, message: 'Done!' });
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        setProgress({ current: 0, total: 0, message: 'Cancelled' });
+      } else {
+        console.error('Batch processing failed:', err);
+        setProgress({ current: 0, total: 0, message: `Error: ${err instanceof Error ? err.message : 'Unknown error'}` });
+      }
     } finally {
-      setProcessing(false);
-      setProgress(0);
+      setConverting(false);
+      abortRef.current = null;
     }
+  };
+
+  const handleCancel = () => {
+    abortRef.current?.abort();
   };
 
   return (
     <div className="batch-panel">
-      <div className="batch-header">
-        <span>Batch ({items.length})</span>
-      </div>
-      <div className="batch-list">
-        {items.length === 0 && (
-          <div className="batch-empty">No items. Add crops from the editor.</div>
-        )}
-        {items.map((item) => (
-          <div key={item.id} className="batch-item">
-            <div className="batch-item-thumb">
-              <img src={item.imageUrl} alt={item.imageName} />
-            </div>
-            <div className="batch-item-info">
-              <div className="batch-item-name">{item.imageName}</div>
-              <div className="batch-item-meta">
-                {item.orientation === 'portrait' ? '3:5 Portrait' : '5:3 Landscape'}
-              </div>
-            </div>
-            <button
-              className="batch-item-remove"
-              onClick={() => onRemove(item.id)}
-              disabled={processing}
-            >
-              &times;
-            </button>
-          </div>
-        ))}
-      </div>
       {items.length > 0 && (
-        <div className="batch-footer">
-          {processing && (
-            <div className="batch-progress">
-              <progress value={progress} max={items.length} />
-              <span>{progress}/{items.length}</span>
+        <div style={{ marginBottom: 10 }}>
+          {items.map((item) => (
+            <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 12 }}>
+              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-dim)' }}>
+                {item.imageName}
+              </span>
+              <button
+                onClick={() => onRemove(item.id)}
+                disabled={converting}
+                className="config-preset-del"
+                aria-label={`Remove ${item.imageName}`}
+              >
+                ✕
+              </button>
             </div>
-          )}
-          <button
-            className="btn-download-all"
-            onClick={handleDownloadAll}
-            disabled={processing || items.length === 0}
-          >
-            {processing ? 'Processing...' : `Download All (${items.length}) as ZIP`}
-          </button>
+          ))}
         </div>
       )}
+
+      {progress && progress.message && (
+        <div className="batch-progress" aria-live="polite">
+          <div className="progress-text">
+            {progress.total > 0 ? (
+              <>{progress.current}/{progress.total}: {progress.message}</>
+            ) : (
+              <>{progress.message}</>
+            )}
+          </div>
+          {progress.total > 0 && (
+            <div className="progress-bar">
+              <div
+                className="progress-fill"
+                style={{ width: `${(progress.current / progress.total) * 100}%` }}
+              />
+            </div>
+          )}
+        </div>
+      )}
+      <div className="batch-actions">
+        {converting ? (
+          <button className="btn btn-danger btn-lg" onClick={handleCancel}>
+            Cancel
+          </button>
+        ) : (
+          <button
+            className="btn btn-primary btn-lg"
+            onClick={handleDownloadAll}
+            disabled={items.length === 0}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M7 11V4M4 7l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 10v1.5A1.5 1.5 0 003.5 13h7a1.5 1.5 0 001.5-1.5V10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            Download ZIP ({items.length} image{items.length !== 1 ? 's' : ''})
+          </button>
+        )}
+      </div>
     </div>
   );
-}
+});

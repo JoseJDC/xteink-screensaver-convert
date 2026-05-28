@@ -1,12 +1,17 @@
 import type { DitherAlgorithm } from './utils/dither';
 
+export type { DitherAlgorithm } from './utils/dither';
+
+export type OrientationMode = 'portrait' | 'landscape';
+
 export interface ImageFile {
   name: string;
   url: string;
   processed: boolean;
+  orientation: OrientationMode;
+  rotation: 0 | 90 | 180 | 270;
+  source?: string;
 }
-
-export type CropOrientation = 'portrait' | 'landscape';
 
 export interface CropRect {
   x: number;
@@ -22,6 +27,12 @@ export interface BatchItem {
   cropRect: CropRect;
   displayWidth: number;
   displayHeight: number;
-  orientation: CropOrientation;
+  orientation: OrientationMode;
   dither: DitherAlgorithm;
+}
+
+export interface ConversionProgress {
+  current: number;
+  total: number;
+  message: string;
 }

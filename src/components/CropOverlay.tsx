@@ -1,10 +1,10 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
-import type { CropRect, CropOrientation } from '../types';
+import type { CropRect, OrientationMode } from '../types';
 
 interface CropOverlayProps {
   containerWidth: number;
   containerHeight: number;
-  orientation: CropOrientation;
+  orientation: OrientationMode;
   onCropChange: (rect: CropRect) => void;
 }
 
@@ -125,29 +125,29 @@ function computeResize(
     }
     case 'n': {
       const bottom = y + h;
-      let nh = Math.max(1, bottom - py);
-      let nw = nh * ratio;
-      let nx = x + w / 2 - nw / 2;
-      let ny = bottom - nh;
+      const nh = Math.max(1, bottom - py);
+      const nw = nh * ratio;
+      const nx = x + w / 2 - nw / 2;
+      const ny = bottom - nh;
       return clampRect({ x: nx, y: ny, width: nw, height: nh }, cw, ch, ratio);
     }
     case 's': {
-      let nh = Math.max(1, py - y);
-      let nw = nh * ratio;
-      let nx = x + w / 2 - nw / 2;
+      const nh = Math.max(1, py - y);
+      const nw = nh * ratio;
+      const nx = x + w / 2 - nw / 2;
       return clampRect({ x: nx, y, width: nw, height: nh }, cw, ch, ratio);
     }
     case 'e': {
-      let nw = Math.max(1, px - x);
-      let nh = nw / ratio;
-      let ny = y + h / 2 - nh / 2;
+      const nw = Math.max(1, px - x);
+      const nh = nw / ratio;
+      const ny = y + h / 2 - nh / 2;
       return clampRect({ x, y: ny, width: nw, height: nh }, cw, ch, ratio);
     }
     case 'w': {
       const right = x + w;
-      let nw = Math.max(1, right - px);
-      let nh = nw / ratio;
-      let ny = y + h / 2 - nh / 2;
+      const nw = Math.max(1, right - px);
+      const nh = nw / ratio;
+      const ny = y + h / 2 - nh / 2;
       return clampRect({ x: right - nw, y: ny, width: nw, height: nh }, cw, ch, ratio);
     }
   }
@@ -199,6 +199,7 @@ export default function CropOverlay({
 
   useEffect(() => {
     const newRect = computeRect(containerWidth, containerHeight);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRect(newRect);
     onCropChange(newRect);
   }, [containerWidth, containerHeight, computeRect, onCropChange]);

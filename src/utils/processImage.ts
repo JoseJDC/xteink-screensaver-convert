@@ -1,4 +1,4 @@
-import type { CropOrientation, CropRect } from '../types';
+import type { OrientationMode, CropRect } from '../types';
 import { canvasToBMP } from './bmp';
 import { applyDither } from './dither';
 import type { DitherAlgorithm } from './dither';
@@ -15,7 +15,7 @@ export async function processImage(
   cropRect: CropRect,
   displayWidth: number,
   displayHeight: number,
-  orientation: CropOrientation,
+  orientation: OrientationMode,
   ditherAlgorithm: DitherAlgorithm
 ): Promise<ProcessedResult> {
   const scaleX = img.naturalWidth / displayWidth;
