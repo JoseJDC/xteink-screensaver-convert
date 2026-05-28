@@ -180,6 +180,7 @@ export default memo(function ImageEditor({
               containerHeight={displaySize.h}
               orientation={editorOrientation}
               initialRect={initialCropRect}
+              imageKey={image?.url}
               onCropChange={handleCropChange}
             />
           )}

@@ -9,6 +9,8 @@ export interface ImageFile {
   url: string;
   processed: boolean;
   orientation: OrientationMode;
+  dither: DitherAlgorithm;
+  contrast: number;
   source?: string;
 }
 

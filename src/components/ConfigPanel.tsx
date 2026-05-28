@@ -18,11 +18,11 @@ interface ConfigPanelProps {
 }
 
 const DITHER_OPTIONS: { value: DitherAlgorithm; label: string }[] = [
-  { value: 'none', label: 'None (Threshold)' },
-  { value: 'floyd-steinberg', label: 'Floyd-Steinberg' },
-  { value: 'atkinson', label: 'Atkinson' },
-  { value: 'bayer4x4', label: 'Bayer 4×4' },
-  { value: 'bayer8x8', label: 'Bayer 8×8' },
+  { value: 'none', label: 'None' },
+  { value: 'floyd-steinberg', label: 'F-Stein' },
+  { value: 'atkinson', label: 'Atk' },
+  { value: 'bayer4x4', label: 'Bayer4' },
+  { value: 'bayer8x8', label: 'Bayer8' },
 ];
 
 export default memo(function ConfigPanel({
@@ -90,17 +90,20 @@ export default memo(function ConfigPanel({
       </div>
 
       <div className="config-row">
-        <label htmlFor="dither-select">Dither:</label>
-        <select
-          id="dither-select"
-          value={dither}
-          onChange={(e) => onDitherChange(e.target.value as DitherAlgorithm)}
-          title="Dithering algorithm for black-and-white conversion"
-        >
+        <label>Dither:</label>
+        <div className="config-btn-group" style={{ flexWrap: 'wrap' }}>
           {DITHER_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
+            <button
+              key={opt.value}
+              className={dither === opt.value ? 'active' : ''}
+              onClick={() => onDitherChange(opt.value)}
+              title={opt.label}
+              style={{ flex: '0 1 auto', padding: '5px 6px', fontSize: '10px' }}
+            >
+              {opt.label}
+            </button>
           ))}
-        </select>
+        </div>
       </div>
 
       <div className="config-row">

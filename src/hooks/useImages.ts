@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import type { DitherAlgorithm } from '../utils/dither';
 import type { ImageFile, OrientationMode } from '../types';
 
 const IMAGE_TYPES = new Set([
@@ -17,6 +18,8 @@ interface UseImagesReturn {
   selectImage: (index: number) => void;
   markProcessed: (index: number) => void;
   setOrientation: (index: number, orientation: OrientationMode) => void;
+  setDither: (index: number, dither: DitherAlgorithm) => void;
+  setContrast: (index: number, contrast: number) => void;
   clear: () => void;
 }
 
@@ -61,6 +64,8 @@ export function useImages(): UseImagesReturn {
           url,
           processed: false,
           orientation: 'portrait' as OrientationMode,
+          dither: 'none' as DitherAlgorithm,
+          contrast: 0,
         };
       });
 
@@ -103,6 +108,22 @@ export function useImages(): UseImagesReturn {
     });
   }, []);
 
+  const setDither = useCallback((index: number, dither: DitherAlgorithm) => {
+    setImages((prev) => {
+      const next = [...prev];
+      if (next[index]) next[index] = { ...next[index], dither };
+      return next;
+    });
+  }, []);
+
+  const setContrast = useCallback((index: number, contrast: number) => {
+    setImages((prev) => {
+      const next = [...prev];
+      if (next[index]) next[index] = { ...next[index], contrast };
+      return next;
+    });
+  }, []);
+
   const clear = useCallback(() => {
     oldUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
     oldUrlsRef.current = [];
@@ -114,6 +135,6 @@ export function useImages(): UseImagesReturn {
   return {
     images, currentIndex, currentImage, loading, error,
     loadFiles, goToNext, goToPrev, selectImage,
-    markProcessed, setOrientation, clear,
+    markProcessed, setOrientation, setDither, setContrast, clear,
   };
 }

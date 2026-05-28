@@ -6,6 +6,7 @@ interface CropOverlayProps {
   containerHeight: number;
   orientation: OrientationMode;
   initialRect?: CropRect | null;
+  imageKey?: string;
   onCropChange: (rect: CropRect) => void;
 }
 
@@ -47,17 +48,24 @@ const HANDLE_STYLES: Record<HandleId, React.CSSProperties> = {
   w: { top: '50%', left: -HANDLE_OFFSET, marginTop: -HANDLE_OFFSET, cursor: 'ew-resize' },
 };
 
+function rectMatchesOrientation(rect: CropRect, orientation: OrientationMode): boolean {
+  if (rect.width <= 0 || rect.height <= 0) return false;
+  const ratio = rect.width / rect.height;
+  const expected = orientation === 'portrait' ? 3 / 5 : 5 / 3;
+  return Math.abs(ratio - expected) < 0.01;
+}
+
 export default function CropOverlay({
   containerWidth,
   containerHeight,
   orientation,
   initialRect,
+  imageKey,
   onCropChange,
 }: CropOverlayProps) {
   const [rect, setRect] = useState<CropRect>({ x: 0, y: 0, width: 0, height: 0 });
   const interactionRef = useRef<Interaction>(null);
   const rectRef = useRef<HTMLDivElement>(null);
-  const isInitialized = useRef(false);
 
   const aspectRatio = orientation === 'portrait' ? 3 / 5 : 5 / 3;
   const ratioLabel = orientation === 'portrait' ? '3:5' : '5:3';
@@ -93,37 +101,20 @@ export default function CropOverlay({
     [aspectRatio]
   );
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (initialRect && initialRect.width > 0 && initialRect.height > 0) {
-      if (!isInitialized.current) {
-        isInitialized.current = true;
-        setRect(initialRect);
-        onCropChange(initialRect);
-        return;
-      }
-      if (initialRect.x === rect.x && initialRect.y === rect.y &&
-          initialRect.width === rect.width && initialRect.height === rect.height) {
-        return;
-      }
-    }
-    const newRect = computeRect(containerWidth, containerHeight);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setRect(newRect);
-    onCropChange(newRect);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [containerWidth, containerHeight]);
-
-  useEffect(() => {
-    if (!isInitialized.current) return;
     if (initialRect && initialRect.width > 0 && initialRect.height > 0 &&
-        (initialRect.x !== rect.x || initialRect.y !== rect.y ||
-         initialRect.width !== rect.width || initialRect.height !== rect.height)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+        rectMatchesOrientation(initialRect, orientation)) {
       setRect(initialRect);
       onCropChange(initialRect);
+    } else {
+      const newRect = computeRect(containerWidth, containerHeight);
+      setRect(newRect);
+      onCropChange(newRect);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orientation]);
+  }, [containerWidth, containerHeight, orientation, imageKey]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const startDrag = (e: React.PointerEvent) => {
     e.preventDefault();

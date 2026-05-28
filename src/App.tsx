@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import type { CropRect, BatchItem } from './types';
-import type { DitherAlgorithm } from './utils/dither';
 import { useImages } from './hooks/useImages';
 import ConfigPanel from './components/ConfigPanel';
 import ImageList from './components/ImageList';
@@ -10,8 +9,6 @@ import './App.css';
 
 export default function App() {
   const images = useImages();
-  const [dither, setDither] = useState<DitherAlgorithm>('none');
-  const [contrast, setContrast] = useState(0);
   const [cropStates, setCropStates] = useState<Record<string, { rect: CropRect; displayW: number; displayH: number }>>({});
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -61,10 +58,10 @@ export default function App() {
           displayWidth: cs!.displayW,
           displayHeight: cs!.displayH,
           orientation: img.orientation,
-          dither,
+          dither: img.dither,
         };
       }),
-  [images.images, cropStates, dither]);
+  [images.images, cropStates]);
 
   const currentCropRect = images.currentImage ? cropStates[images.currentImage.name]?.rect : null;
 
@@ -116,6 +113,9 @@ export default function App() {
     return () => window.removeEventListener('keydown', handler);
   }, [images]);
 
+  const currentDither = images.currentImage?.dither ?? 'none';
+  const currentContrast = images.currentImage?.contrast ?? 0;
+
   return (
     <div className="app">
       <header className="app-header">
@@ -166,11 +166,11 @@ export default function App() {
       <main className="app-main">
         <aside className={`app-sidebar${sidebarCollapsed ? ' collapsed' : ''}`}>
           <ConfigPanel
-            dither={dither}
-            contrast={contrast}
+            dither={currentDither}
+            contrast={currentContrast}
             onFilesSelected={handleFilesSelected}
-            onDitherChange={setDither}
-            onContrastChange={setContrast}
+            onDitherChange={(d) => images.setDither(images.currentIndex, d)}
+            onContrastChange={(c) => images.setContrast(images.currentIndex, c)}
           />
 
           {images.error && <div className="error-banner">{images.error}</div>}
@@ -210,8 +210,8 @@ export default function App() {
           {images.currentImage ? (
             <ImageEditor
               image={images.currentImage}
-              dither={dither}
-              contrast={contrast}
+              dither={currentDither}
+              contrast={currentContrast}
               imageCount={images.images.length}
               currentIndex={images.currentIndex}
               initialCropRect={currentCropRect}
