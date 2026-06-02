@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { DitherAlgorithm } from '../utils/dither';
 import type { CropRect, ImageFile, OrientationMode } from '../types';
+import { computeDefaultCropRectNatural } from '../utils/crop';
 
 const IMAGE_TYPES = new Set([
   'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp',
@@ -24,6 +25,15 @@ interface UseImagesReturn {
   clear: () => void;
 }
 
+function loadImageDimensions(url: string): Promise<{ w: number; h: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+    img.onerror = () => reject(new Error('Failed to load image'));
+    img.src = url;
+  });
+}
+
 export function useImages(): UseImagesReturn {
   const [images, setImages] = useState<ImageFile[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -39,7 +49,7 @@ export function useImages(): UseImagesReturn {
 
   const currentImage = images.length > 0 ? images[currentIndex] : null;
 
-  const loadFiles = useCallback((files: FileList) => {
+  const loadFiles = useCallback(async (files: FileList) => {
     setLoading(true);
     setError(null);
 
@@ -57,18 +67,40 @@ export function useImages(): UseImagesReturn {
       oldUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
 
       const newUrls: string[] = [];
-      const list: ImageFile[] = validFiles.map((file) => {
+      const list: ImageFile[] = [];
+
+      for (const file of validFiles) {
         const url = URL.createObjectURL(file);
         newUrls.push(url);
-        return {
-          name: file.name,
-          url,
-          processed: false,
-          orientation: 'portrait' as OrientationMode,
-          dither: 'none' as DitherAlgorithm,
-          contrast: 0,
-        };
-      });
+
+        try {
+          const { w, h } = await loadImageDimensions(url);
+          const orientation: OrientationMode = w > h ? 'landscape' : 'portrait';
+          const cropRect = computeDefaultCropRectNatural(w, h, orientation);
+
+          list.push({
+            name: file.name,
+            url,
+            processed: false,
+            orientation,
+            dither: 'none' as DitherAlgorithm,
+            contrast: 0,
+            cropRect,
+            displayW: w,
+            displayH: h,
+          });
+        } catch {
+          // If we can't read dimensions, still add the file without precalculated crop
+          list.push({
+            name: file.name,
+            url,
+            processed: false,
+            orientation: 'portrait' as OrientationMode,
+            dither: 'none' as DitherAlgorithm,
+            contrast: 0,
+          });
+        }
+      }
 
       oldUrlsRef.current = newUrls;
       setImages(list);

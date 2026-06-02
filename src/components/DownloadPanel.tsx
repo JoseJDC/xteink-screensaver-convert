@@ -1,6 +1,7 @@
 import { useState, useRef, memo } from 'react';
-import type { ImageFile, ConversionProgress, CropRect, OrientationMode } from '../types';
+import type { ImageFile, ConversionProgress, OrientationMode } from '../types';
 import { processImage } from '../utils/processImage';
+import { computeDefaultCropRectNatural } from '../utils/crop';
 
 interface DownloadPanelProps {
   images: ImageFile[];
@@ -13,22 +14,8 @@ export default memo(function DownloadPanel({ images }: DownloadPanelProps) {
 
   const validImages = images;
 
-  function computeDefaultCropRect(naturalW: number, naturalH: number, orientation: OrientationMode): CropRect {
-    const aspectRatio = orientation === 'portrait' ? 3 / 5 : 5 / 3;
-    let cropW: number, cropH: number;
-    if (naturalW / naturalH > aspectRatio) {
-      cropH = naturalH;
-      cropW = cropH * aspectRatio;
-    } else {
-      cropW = naturalW;
-      cropH = cropW / aspectRatio;
-    }
-    return {
-      x: Math.round((naturalW - cropW) / 2),
-      y: Math.round((naturalH - cropH) / 2),
-      width: Math.round(cropW),
-      height: Math.round(cropH),
-    };
+  function getDefaultCropRect(naturalW: number, naturalH: number, orientation: OrientationMode) {
+    return computeDefaultCropRectNatural(naturalW, naturalH, orientation);
   }
 
   const handleDownloadAll = async () => {
@@ -63,7 +50,7 @@ export default memo(function DownloadPanel({ images }: DownloadPanelProps) {
 
         const cropRect = hasCropRect
           ? img.cropRect!
-          : computeDefaultCropRect(el.naturalWidth, el.naturalHeight, 
+          : getDefaultCropRect(el.naturalWidth, el.naturalHeight,
               (el.naturalWidth > el.naturalHeight ? 'landscape' : 'portrait') as OrientationMode);
 
         const orientation = (cropRect.width / cropRect.height > 1 ? 'landscape' : 'portrait') as OrientationMode;

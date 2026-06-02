@@ -99,10 +99,26 @@ export default memo(function ImageEditor({
   }, []);
 
   const handleCropChange = useCallback((rect: CropRect) => {
-    if (displaySize.w > 0 && displaySize.h > 0) {
-      onCropRectUpdate(rect, displaySize.w, displaySize.h);
+    const img = imgRef.current;
+    if (!img || displaySize.w <= 0 || displaySize.h <= 0) return;
+    const scaleX = img.naturalWidth / displaySize.w;
+    const scaleY = img.naturalHeight / displaySize.h;
+    const naturalRect: CropRect = {
+      x: Math.round(rect.x * scaleX),
+      y: Math.round(rect.y * scaleY),
+      width: Math.round(rect.width * scaleX),
+      height: Math.round(rect.height * scaleY),
+    };
+    // Avoid re-saving if the crop hasn't meaningfully changed from initial
+    if (initialCropRect) {
+      const dx = Math.abs(naturalRect.x - initialCropRect.x);
+      const dy = Math.abs(naturalRect.y - initialCropRect.y);
+      const dw = Math.abs(naturalRect.width - initialCropRect.width);
+      const dh = Math.abs(naturalRect.height - initialCropRect.height);
+      if (dx <= 2 && dy <= 2 && dw <= 2 && dh <= 2) return;
     }
-  }, [onCropRectUpdate, displaySize.w, displaySize.h]);
+    onCropRectUpdate(naturalRect, img.naturalWidth, img.naturalHeight);
+  }, [onCropRectUpdate, displaySize.w, displaySize.h, initialCropRect]);
 
   const handleOrientationChange = useCallback((orientation: OrientationMode) => {
     setEditorOrientation(orientation);
@@ -156,14 +172,6 @@ export default memo(function ImageEditor({
   }, [imgLoaded, displaySize.w, displaySize.h, dither, contrast, drawCanvas]);
 
   const handleImageLoad = () => {
-    const img = imgRef.current;
-    if (img) {
-      if (!initialCropRect) {
-        const detected = img.naturalWidth > img.naturalHeight ? 'landscape' : 'portrait';
-        setEditorOrientation(detected);
-        onOrientationUpdate?.(detected);
-      }
-    }
     updateSize();
   };
 

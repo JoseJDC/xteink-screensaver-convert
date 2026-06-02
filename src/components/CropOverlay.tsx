@@ -1,5 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import type { CropRect, OrientationMode } from '../types';
+import { computeDefaultCropRectDisplay } from '../utils/crop';
 
 interface CropOverlayProps {
   containerWidth: number;
@@ -69,33 +70,9 @@ export default function CropOverlay({
 
   const computeRect = useCallback(
     (w: number, h: number): CropRect => {
-      if (w <= 0 || h <= 0) return { x: 0, y: 0, width: 0, height: 0 };
-
-      let cropW: number;
-      let cropH: number;
-
-      if (w / h > aspectRatio) {
-        cropH = h;
-        cropW = cropH * aspectRatio;
-        if (cropW > w) {
-          cropW = w;
-          cropH = cropW / aspectRatio;
-        }
-      } else {
-        cropW = w;
-        cropH = cropW / aspectRatio;
-        if (cropH > h) {
-          cropH = h;
-          cropW = cropH * aspectRatio;
-        }
-      }
-
-      const x = Math.round(clamp((w - cropW) / 2, 0, w - cropW));
-      const y = Math.round(clamp((h - cropH) / 2, 0, h - cropH));
-
-      return { x, y, width: cropW, height: cropH };
+      return computeDefaultCropRectDisplay(w, h, orientation);
     },
-    [aspectRatio]
+    [orientation]
   );
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -106,14 +83,15 @@ export default function CropOverlay({
 
     if (hasStored && initialDisplayW && initialDisplayH &&
         initialDisplayW > 0 && initialDisplayH > 0) {
-      const fullRect = computeRect(containerWidth, containerHeight);
       const scaleX = containerWidth / initialDisplayW;
       const scaleY = containerHeight / initialDisplayH;
       newRect = {
-        ...fullRect,
-        x: Math.round(clamp(initialCropRect.x * scaleX, 0, containerWidth - fullRect.width)),
-        y: Math.round(clamp(initialCropRect.y * scaleY, 0, containerHeight - fullRect.height)),
+        x: Math.round(initialCropRect.x * scaleX),
+        y: Math.round(initialCropRect.y * scaleY),
+        width: Math.round(initialCropRect.width * scaleX),
+        height: Math.round(initialCropRect.height * scaleY),
       };
+      newRect = clampRect(newRect, containerWidth, containerHeight, aspectRatio);
     } else {
       newRect = computeRect(containerWidth, containerHeight);
     }
