@@ -18,6 +18,8 @@ interface ImageEditorProps {
   onPrev: () => void;
   onCropRectUpdate: (rect: CropRect, displayW: number, displayH: number) => void;
   onOrientationUpdate?: (orientation: OrientationMode) => void;
+  onDitherChange?: (dither: DitherAlgorithm) => void;
+  onContrastChange?: (contrast: number) => void;
 }
 
 function toGrayscale(data: Uint8ClampedArray): void {
@@ -64,6 +66,8 @@ export default memo(function ImageEditor({
   onPrev,
   onCropRectUpdate,
   onOrientationUpdate,
+  onDitherChange,
+  onContrastChange,
 }: ImageEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -157,6 +161,12 @@ export default memo(function ImageEditor({
   }, [image?.url]);
 
   useEffect(() => {
+    if (image?.orientation) {
+      setEditorOrientation(image.orientation);
+    }
+  }, [image?.orientation]);
+
+  useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
     const observer = new ResizeObserver(updateSize);
@@ -229,6 +239,10 @@ export default memo(function ImageEditor({
           onNext={onNext}
           orientation={editorOrientation}
           onOrientationChange={handleOrientationChange}
+          dither={dither}
+          onDitherChange={onDitherChange || (() => {})}
+          contrast={contrast}
+          onContrastChange={onContrastChange || (() => {})}
         />
       )}
 

@@ -1,10 +1,13 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { CropRect, OrientationMode } from './types';
+import type { DitherAlgorithm } from './utils/dither';
 import { useImages } from './hooks/useImages';
 import ConfigPanel from './components/ConfigPanel';
 import ImageList from './components/ImageList';
 import ImageEditor from './components/ImageEditor';
 import DownloadPanel from './components/DownloadPanel';
+import { processImage } from './utils/processImage';
+import { computeDefaultCropRectNatural } from './utils/crop';
 import './App.css';
 
 export default function App() {
@@ -47,6 +50,42 @@ export default function App() {
   const currentDither = images.currentImage?.dither ?? 'none';
   const currentContrast = images.currentImage?.contrast ?? 0;
 
+  const downloadSingleImage = useCallback(async (index: number) => {
+    const img = images.images[index];
+    if (!img) return;
+
+    try {
+      const el = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const imageEl = new Image();
+        imageEl.onload = () => resolve(imageEl);
+        imageEl.onerror = () => reject(new Error(`Failed to load ${img.name}`));
+        imageEl.src = img.url;
+      });
+
+      const hasCropRect = img.cropRect && img.cropRect.width > 0 && img.cropRect.height > 0;
+      const cropRect = hasCropRect
+        ? img.cropRect!
+        : computeDefaultCropRectNatural(el.naturalWidth, el.naturalHeight,
+            (el.naturalWidth > el.naturalHeight ? 'landscape' : 'portrait') as OrientationMode);
+      const orientation = (cropRect.width / cropRect.height > 1 ? 'landscape' : 'portrait') as OrientationMode;
+      const displayW = hasCropRect && img.displayW ? img.displayW : el.naturalWidth;
+      const displayH = hasCropRect && img.displayH ? img.displayH : el.naturalHeight;
+
+      const result = await processImage(el, cropRect, displayW, displayH, orientation, img.dither);
+
+      const baseName = img.name.replace(/\.[^.]+$/, '');
+      const fileName = `${baseName}_${orientation}.bmp`;
+      const url = URL.createObjectURL(result.blob);
+      const link = document.createElement('a');
+      link.download = fileName;
+      link.href = url;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Single download failed:', err);
+    }
+  }, [images.images]);
+
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -81,19 +120,91 @@ export default function App() {
 
   useEffect(() => {
     if (images.images.length === 0) return;
+
+    const DITHER_MAP: Record<string, DitherAlgorithm> = {
+      q: 'none',
+      w: 'floyd-steinberg',
+      e: 'atkinson',
+      r: 'bayer4x4',
+      t: 'bayer8x8',
+    };
+
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      const key = e.key.toLowerCase();
+
+      // Navigation
       if (e.key === 'ArrowLeft' && images.currentIndex > 0) {
+        e.preventDefault();
         images.selectImage(images.currentIndex - 1);
+        return;
       }
       if (e.key === 'ArrowRight' && images.currentIndex < images.images.length - 1) {
+        e.preventDefault();
         images.selectImage(images.currentIndex + 1);
+        return;
+      }
+
+      // Contrast up/down
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        const next = Math.min(8, currentContrast + 1);
+        if (next !== currentContrast) images.setContrast(images.currentIndex, next);
+        return;
+      }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        const next = Math.max(0, currentContrast - 1);
+        if (next !== currentContrast) images.setContrast(images.currentIndex, next);
+        return;
+      }
+
+      // Dither filters (Q W E R T)
+      if (key in DITHER_MAP) {
+        e.preventDefault();
+        const next = DITHER_MAP[key];
+        if (next !== currentDither) images.setDither(images.currentIndex, next);
+        return;
+      }
+
+      // Contrast direct (0-8)
+      if (/^[0-8]$/.test(key)) {
+        e.preventDefault();
+        const next = parseInt(key, 10);
+        if (next !== currentContrast) images.setContrast(images.currentIndex, next);
+        return;
+      }
+
+      // Orientation toggle (F)
+      if (key === 'f') {
+        e.preventDefault();
+        const current = images.currentImage?.orientation ?? 'portrait';
+        const next = current === 'portrait' ? 'landscape' : 'portrait';
+        images.setOrientation(images.currentIndex, next);
+        return;
+      }
+
+      // Download current image (Space)
+      if (e.key === ' ') {
+        e.preventDefault();
+        downloadSingleImage(images.currentIndex);
+        return;
+      }
+
+      // Download all (Enter)
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const btn = document.querySelector('.batch-actions .btn-primary') as HTMLButtonElement | null;
+        btn?.click();
+        return;
       }
     };
+
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [images]);
+  }, [images, currentContrast, currentDither, downloadSingleImage]);
 
   return (
     <div className="app">
@@ -145,11 +256,7 @@ export default function App() {
       <main className="app-main">
         <aside className={`app-sidebar${sidebarCollapsed ? ' collapsed' : ''}`}>
           <ConfigPanel
-            dither={currentDither}
-            contrast={currentContrast}
             onFilesSelected={handleFilesSelected}
-            onDitherChange={(d) => images.setDither(images.currentIndex, d)}
-            onContrastChange={(c) => images.setContrast(images.currentIndex, c)}
           />
 
           {images.error && <div className="error-banner">{images.error}</div>}
@@ -198,6 +305,8 @@ export default function App() {
               onPrev={images.goToPrev}
               onCropRectUpdate={handleCropRectUpdate}
               onOrientationUpdate={handleOrientationUpdate}
+              onDitherChange={(d) => images.setDither(images.currentIndex, d)}
+              onContrastChange={(c) => images.setContrast(images.currentIndex, c)}
             />
           ) : (
             <div className="app-empty">
