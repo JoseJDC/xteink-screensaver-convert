@@ -12,6 +12,8 @@ interface ImageEditorProps {
   imageCount: number;
   currentIndex: number;
   initialCropRect?: CropRect | null;
+  initialDisplayW?: number | null;
+  initialDisplayH?: number | null;
   onNext: () => void;
   onPrev: () => void;
   onCropRectUpdate: (rect: CropRect, displayW: number, displayH: number) => void;
@@ -56,6 +58,8 @@ export default memo(function ImageEditor({
   imageCount,
   currentIndex,
   initialCropRect,
+  initialDisplayW,
+  initialDisplayH,
   onNext,
   onPrev,
   onCropRectUpdate,
@@ -194,6 +198,9 @@ export default memo(function ImageEditor({
               containerHeight={displaySize.h}
               orientation={editorOrientation}
               imageKey={image?.url}
+              initialCropRect={initialCropRect}
+              initialDisplayW={initialDisplayW}
+              initialDisplayH={initialDisplayH}
               onCropChange={handleCropChange}
             />
           )}

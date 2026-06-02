@@ -6,6 +6,9 @@ interface CropOverlayProps {
   containerHeight: number;
   orientation: OrientationMode;
   imageKey?: string;
+  initialCropRect?: CropRect | null;
+  initialDisplayW?: number | null;
+  initialDisplayH?: number | null;
   onCropChange: (rect: CropRect) => void;
 }
 
@@ -52,6 +55,9 @@ export default function CropOverlay({
   containerHeight,
   orientation,
   imageKey,
+  initialCropRect,
+  initialDisplayW,
+  initialDisplayH,
   onCropChange,
 }: CropOverlayProps) {
   const [rect, setRect] = useState<CropRect>({ x: 0, y: 0, width: 0, height: 0 });
@@ -94,7 +100,24 @@ export default function CropOverlay({
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    const newRect = computeRect(containerWidth, containerHeight);
+    const hasStored = initialCropRect && initialCropRect.width > 0 && initialCropRect.height > 0;
+
+    let newRect: CropRect;
+
+    if (hasStored && initialDisplayW && initialDisplayH &&
+        initialDisplayW > 0 && initialDisplayH > 0) {
+      const fullRect = computeRect(containerWidth, containerHeight);
+      const scaleX = containerWidth / initialDisplayW;
+      const scaleY = containerHeight / initialDisplayH;
+      newRect = {
+        ...fullRect,
+        x: Math.round(clamp(initialCropRect.x * scaleX, 0, containerWidth - fullRect.width)),
+        y: Math.round(clamp(initialCropRect.y * scaleY, 0, containerHeight - fullRect.height)),
+      };
+    } else {
+      newRect = computeRect(containerWidth, containerHeight);
+    }
+
     setRect(newRect);
     onCropChange(newRect);
   // eslint-disable-next-line react-hooks/exhaustive-deps

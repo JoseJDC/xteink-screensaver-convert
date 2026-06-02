@@ -42,6 +42,8 @@ export default function App() {
   }, [images]);
 
   const currentCropRect = images.currentImage?.cropRect ?? null;
+  const currentDisplayW = images.currentImage?.displayW ?? null;
+  const currentDisplayH = images.currentImage?.displayH ?? null;
   const currentDither = images.currentImage?.dither ?? 'none';
   const currentContrast = images.currentImage?.contrast ?? 0;
 
@@ -190,6 +192,8 @@ export default function App() {
               imageCount={images.images.length}
               currentIndex={images.currentIndex}
               initialCropRect={currentCropRect}
+              initialDisplayW={currentDisplayW}
+              initialDisplayH={currentDisplayH}
               onNext={images.goToNext}
               onPrev={images.goToPrev}
               onCropRectUpdate={handleCropRectUpdate}

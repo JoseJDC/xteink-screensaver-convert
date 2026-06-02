@@ -1,4 +1,4 @@
-import { memo, useState, useEffect } from 'react';
+import { memo, useState, useEffect, useRef } from 'react';
 import type { DitherAlgorithm } from '../utils/dither';
 
 interface Preset {
@@ -37,6 +37,7 @@ export default memo(function ConfigPanel({
   });
   const [presetName, setPresetName] = useState('');
   const [showPresetInput, setShowPresetInput] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
@@ -72,6 +73,7 @@ export default memo(function ConfigPanel({
         <label className="config-label-file" htmlFor="file-input">Images:</label>
         <div className="config-file-wrap" title="Select images (JPG/PNG/WebP/BMP/GIF)">
           <input
+            ref={fileInputRef}
             id="file-input"
             type="file"
             multiple
@@ -79,7 +81,12 @@ export default memo(function ConfigPanel({
             onChange={handleFileChange}
             className="config-file-input"
           />
-          <span className="config-file-btn">
+          <span
+            className="config-file-btn"
+            onClick={() => fileInputRef.current?.click()}
+            role="button"
+            tabIndex={0}
+          >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
               <path d="M7 10V3M4 6l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M2 9v2a1 1 0 001 1h8a1 1 0 001-1V9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
