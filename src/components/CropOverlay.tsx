@@ -83,15 +83,25 @@ export default function CropOverlay({
 
     if (hasStored && initialDisplayW && initialDisplayH &&
         initialDisplayW > 0 && initialDisplayH > 0) {
-      const scaleX = containerWidth / initialDisplayW;
-      const scaleY = containerHeight / initialDisplayH;
-      newRect = {
-        x: Math.round(initialCropRect.x * scaleX),
-        y: Math.round(initialCropRect.y * scaleY),
-        width: Math.round(initialCropRect.width * scaleX),
-        height: Math.round(initialCropRect.height * scaleY),
-      };
-      newRect = clampRect(newRect, containerWidth, containerHeight, aspectRatio);
+      const storedRatio = initialCropRect.width / initialCropRect.height;
+      const targetRatio = aspectRatio;
+      const ratioDiff = Math.abs(storedRatio - targetRatio);
+
+      if (ratioDiff < 0.1) {
+        // Same orientation family, scale the stored crop
+        const scaleX = containerWidth / initialDisplayW;
+        const scaleY = containerHeight / initialDisplayH;
+        newRect = {
+          x: Math.round(initialCropRect.x * scaleX),
+          y: Math.round(initialCropRect.y * scaleY),
+          width: Math.round(initialCropRect.width * scaleX),
+          height: Math.round(initialCropRect.height * scaleY),
+        };
+        newRect = clampRect(newRect, containerWidth, containerHeight, aspectRatio);
+      } else {
+        // Orientation changed, recalculate centered crop from scratch
+        newRect = computeRect(containerWidth, containerHeight);
+      }
     } else {
       newRect = computeRect(containerWidth, containerHeight);
     }
